@@ -4,49 +4,159 @@ ifndef::imagesdir[:imagesdir: ../images]
 == Quality Requirements
 
 Die Qualitätsanforderungen machen die wichtigsten Ziele des Systems anhand konkreter Szenarien messbar.
+Sie beschreiben, welche Eigenschaften das System im Betrieb erfüllen soll und welche Architekturentscheidungen diese Ziele unterstützen.
 
 === Quality Requirements Overview
 
-Für dieses System sind vor allem eine schnelle Reaktion, eine einfache Nutzung sowie ein robuster Betrieb wichtig. Da das System sowohl in der Lehre als auch für Tests verwendet wird, spielen zudem Portabilität und Wartbarkeit eine wichtige Rolle.
+Für dieses System sind vor allem eine schnelle Reaktion, eine einfache Nutzung sowie ein robuster Betrieb wichtig.
+Da das System sowohl in der Lehre als auch für Tests verwendet wird, spielen zudem Portabilität, Wartbarkeit und Nachvollziehbarkeit eine wichtige Rolle.
 
-[cols="1,2", options="header"]
+[cols="1,1,2", options="header"]
 |===
-| Qualitätsmerkmal | Priorität
-| Performance | Sehr hoch
-| Bedienbarkeit | Hoch
-| Portabilität | Hoch
-| Robustheit | Hoch
-| Wartbarkeit | Mittel
+| Qualitätsmerkmal | Priorität | Begründung
+
+| **Performance**
+| Sehr hoch
+| Bewegungsbefehle sollen in der Simulation schnell sichtbar werden, damit sich die Steuerung direkt und natürlich anfühlt.
+
+| **Bedienbarkeit**
+| Hoch
+| Die Zielgruppe besteht vor allem aus Studierenden und Robotik-Interessierten. Die API muss daher einfach verständlich und schnell nutzbar sein.
+
+| **Portabilität**
+| Hoch
+| Das System soll auf typischen Rechnern mit Windows, Linux oder macOS lauffähig sein.
+
+| **Robustheit**
+| Hoch
+| Fehler in der Simulation oder Kommunikation sollen das Python-Skript möglichst nicht unkontrolliert abbrechen lassen.
+
+| **Realitätsnähe**
+| Hoch
+| Die Simulation soll das Verhalten des realen Roboters plausibel abbilden, auch wenn sie keine vollständig physikalisch exakte Nachbildung ist.
+
+| **Wartbarkeit**
+| Mittel
+| Neue Befehle, Presets oder Werkzeuge sollen ergänzt werden können, ohne die Grundarchitektur umzubauen.
+
+| **Erweiterbarkeit**
+| Mittel
+| Das System soll später um weitere Weltobjekte, Werkzeuge oder Kommunikationsfunktionen erweitert werden können.
+
+| **Nachvollziehbarkeit**
+| Mittel
+| Nachrichten, Zustände und Fehler sollen für Entwicklung und Debugging verständlich bleiben.
+
 |===
+
+=== Quality Tree
+
+Die Qualitätsziele lassen sich wie folgt strukturieren:
+
+[plantuml, target="diagram-quality-tree", format="png"]
+----
+@startmindmap
+* Qualität
+** Performance
+*** geringe Latenz bei Bewegungsbefehlen
+*** flüssige Darstellung in Unity
+** Bedienbarkeit
+*** einheitliche Python-API
+*** einfache Beispielskripte
+*** geringe Einstiegshürde
+** Robustheit
+*** Eingabevalidierung
+*** keine Blockierung bei fehlender Unity-Simulation
+*** begrenzte Auswirkungen von UDP-Paketverlust
+** Portabilität
+*** Windows
+*** Linux
+*** macOS
+** Wartbarkeit
+*** getrennte Robot- und World-Logik
+*** gekapseltes Protokollmodul
+*** gekapselte Herstellerbibliothek
+** Realitätsnähe
+*** Gelenkgrenzen
+*** Geschwindigkeitsbegrenzung
+*** plausible Werkzeuginteraktion
+@endmindmap
+----
 
 === Quality Scenarios
 
-[cols="1,2,3", options="header"]
+[cols="1,1,3,2", options="header"]
 |===
-| ID | Qualitätsziel | Szenario
+| ID | Qualitätsziel | Szenario | Akzeptanzkriterium
 
 | **QS-1**
-| Performance
-| Ein Benutzer ruft `send_angles(...)` auf. Die Simulation soll innerhalb kurzer Zeit sichtbar auf den Befehl reagieren. Ziel ist, dass die Bewegung in Unity innerhalb von spätestens 50 ms beginnt.
+| **Performance**
+| Ein Benutzer ruft `send_angles(...)` im Modus `virtual` auf. Die Simulation soll innerhalb kurzer Zeit sichtbar auf den Befehl reagieren.
+| Die Bewegung in Unity beginnt im Normalfall innerhalb von spätestens `50 ms`, sofern Unity bereits läuft und die UDP-Kommunikation lokal erfolgt.
 
 | **QS-2**
-| Portabilität
-| Ein Benutzer wechselt von einem Windows-System auf macOS oder Linux. Dasselbe Python-Skript soll ohne Änderungen weiterverwendet werden können, sofern die benötigten Abhängigkeiten installiert sind.
+| **Portabilität**
+| Ein Benutzer wechselt von einem Windows-System auf macOS oder Linux. Dasselbe Python-Skript soll weiterverwendet werden können.
+| Das Skript benötigt keine Codeänderungen, sofern Python, die Projektabhängigkeiten und bei Bedarf die passende Unity-Version installiert sind.
 
 | **QS-3**
-| Robustheit
-| Die Unity-Simulation wird während der Ausführung eines Python-Skripts beendet. Das Python-Skript soll dadurch nicht blockieren oder abstürzen.
+| **Robustheit**
+| Die Unity-Simulation wird während der Ausführung eines Python-Skripts beendet.
+| Das Python-Skript darf durch das Senden von UDP-Nachrichten nicht dauerhaft blockieren. Es soll weiterlaufen oder einen nachvollziehbaren Fehler liefern.
 
 | **QS-4**
-| Eingabevalidierung
-| Ein Benutzer sendet einen Gelenkwinkel ausserhalb des erlaubten Bereichs. Das System muss diesen Wert vor der Weitergabe an Simulation oder Hardware auf den zulässigen Bereich begrenzen.
+| **Eingabevalidierung**
+| Ein Benutzer sendet einen Gelenkwinkel ausserhalb des erlaubten Bereichs.
+| Der Wert wird vor der Weitergabe an Simulation oder Hardware auf den zulässigen Bereich begrenzt.
 
 | **QS-5**
-| Bedienbarkeit
-| Ein neuer Benutzer installiert die Software und führt ein Beispielskript aus. Innerhalb von 15 Minuten soll er in der Lage sein, eine Bewegung in der Simulation erfolgreich zu starten.
+| **Bedienbarkeit**
+| Ein neuer Benutzer installiert die Software und führt ein Beispielskript aus.
+| Innerhalb von etwa `15 Minuten` soll eine erste Bewegung in der Simulation erfolgreich gestartet werden können.
 
 | **QS-6**
-| Wartbarkeit
-| Eine neue Nachricht für die Simulation soll ergänzt werden können, ohne bestehende Roboter- und Weltbefehle grundlegend umzubauen.
+| **Wartbarkeit**
+| Eine neue Nachricht für die Simulation soll ergänzt werden, zum Beispiel ein neuer Weltbefehl.
+| Die Erweiterung kann im `protocol`-Modul und in der zuständigen Unity-Komponente ergänzt werden, ohne bestehende Roboter- und Weltbefehle grundlegend umzubauen.
+
+| **QS-7**
+| **Realitätsnähe**
+| Ein Benutzer führt dieselbe Gelenkbewegung in der Simulation und auf dem realen Roboter aus.
+| Die Bewegungsrichtung, Gelenkreihenfolge und grobe Endposition sollen plausibel übereinstimmen. Kleine Abweichungen durch CAD-Modell, Physik und Laufzeiten sind zulässig.
+
+| **QS-8**
+| **Fehlertoleranz**
+| Ein einzelnes UDP-Paket geht während einer Bewegung verloren.
+| Das System soll nicht abstürzen. Bei zustandsbasierten Bewegungsbefehlen kann ein späteres Paket den Zielzustand wieder korrigieren.
+
+| **QS-9**
+| **Sicherheit**
+| Ein Benutzer gibt eine zu hohe Geschwindigkeit oder ungültige RGB-Werte ein.
+| Die Werte werden vor der Ausführung auf erlaubte Bereiche begrenzt, damit keine offensichtlich ungültigen Befehle an Simulation oder Hardware gesendet werden.
+
+| **QS-10**
+| **Nachvollziehbarkeit**
+| Während der Entwicklung tritt ein Fehler in einer JSON-Nachricht oder in einem Weltbefehl auf.
+| Die Nachrichtenstruktur ist durch `v` und `type` eindeutig genug, um den Fehler im Protokoll oder in der zuständigen Unity-Komponente gezielt einzugrenzen.
+
+| **QS-11**
+| **Erweiterbarkeit**
+| Es soll ein neues Simulationsobjekt ergänzt werden, zum Beispiel ein weiterer geometrischer Körper.
+| Das neue Objekt kann über die Objektstruktur und den `WorldSpawnManager` ergänzt werden, ohne die Robotersteuerung zu verändern.
+
+| **QS-12**
+| **Reproduzierbarkeit**
+| Ein Dozent oder Benutzer möchte ein Testszenario erneut ausführen.
+| Durch Presets kann dieselbe Ausgangssituation mehrfach geladen werden, ohne alle Objekte manuell neu zu erstellen.
 
 |===
+
+=== Hinweise zu Zielkonflikten
+
+Einige Qualitätsziele stehen teilweise im Konflikt zueinander:
+
+* **Performance vs. garantierte Zustellung**
+  UDP wurde gewählt, um niedrige Latenz zu erreichen. Dafür wird keine garantierte Zustellung einzelner Pakete geboten.
+
+* **Realitätsnähe vs. Entwicklungsaufwand**
+  Eine vollständig physikalisch exakte Simulation wäre deutlich aufwendiger. Das Projekt priorisiert daher eine plausible und lernorientierte Simulation.

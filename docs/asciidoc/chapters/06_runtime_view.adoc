@@ -3,22 +3,56 @@ ifndef::imagesdir[:imagesdir: ../images]
 [[section-runtime-view]]
 == Runtime View
 
-Die Laufzeitsicht zeigt, wie die einzelnen Bausteine des Systems zur Laufzeit zusammenarbeiten. Dabei ist wichtig, dass das System je nach Betriebsmodus (`virtual`, `real`, `both`) unterschiedliche Ausführungspfade verwendet. Die Python-Seite übernimmt die Orchestrierung, während die eigentliche Ausführung entweder in der Unity-Simulation, auf dem realen Roboter oder auf beiden Systemen gleichzeitig erfolgt.
+Die Laufzeitsicht zeigt, wie die einzelnen Bausteine des Systems zur Laufzeit zusammenarbeiten.
+Dabei ist wichtig, dass das System je nach Betriebsmodus (`virtual`, `real`, `both`) unterschiedliche
+Ausführungspfade verwendet.
+
+Die Python-Seite übernimmt die Orchestrierung. Sie nimmt Befehle über die Benutzer-API entgegen,
+validiert Eingaben, erzeugt bei Bedarf JSON-Nachrichten und leitet Befehle an die passende Zielkomponente
+weiter. Die eigentliche Ausführung erfolgt je nach Betriebsmodus entweder in der Unity-Simulation, auf dem
+realen Roboter oder auf beiden Systemen gleichzeitig.
 
 === Überblick
 
 Die wichtigsten Laufzeitszenarien des Systems sind:
 
 * asynchrone Roboterbewegung in der Simulation
+* synchrone Roboterbewegung in der Simulation
 * Roboterbewegung auf realer Hardware
 * gleichzeitige Ausführung in Simulation und Hardware
+* Werkzeug- und End-Effektor-Steuerung
 * Verwaltung der Simulationswelt
+* typische Fehler- und Grenzfälle
 
 Diese Szenarien werden in den folgenden Abschnitten beschrieben.
 
+=== Grundprinzip der Laufzeitverarbeitung
+
+Alle Benutzerbefehle folgen demselben Grundprinzip:
+
+. Der Benutzer ruft eine Methode der Python-API auf.
+. Die API delegiert den Befehl an die zuständige Komponente.
+. Eingaben werden validiert und bei Bedarf begrenzt.
+. Je nach Betriebsmodus wird der Befehl an Unity, an die reale Hardware oder an beide Zielsysteme gesendet.
+. Unity oder der reale Roboter führen den Befehl aus.
+
+Für Roboterbefehle ist die Klasse `Robot` der Einstiegspunkt.
+Für Weltbefehle ist die Klasse `World` der Einstiegspunkt.
+
+Die Kommunikation zur Unity-Simulation erfolgt über zwei getrennte UDP-Kanäle:
+
+* Port `5005` für Roboterbefehle
+* Port `5006` für Weltbefehle
+
+Die Kommunikation mit dem realen Roboter erfolgt über `pymycobot` und eine serielle USB-Verbindung.
+
+---
+
 === Szenario 1: Asynchrone Gelenkbewegung in der Simulation
 
-Dieses Szenario beschreibt den typischen Ablauf, wenn der Benutzer einen Bewegungsbefehl im Modus `virtual` ausführt. Dabei wird ein neuer Soll-Zustand für alle vier Gelenke an die Unity-Simulation gesendet, ohne dass auf eine Rückmeldung gewartet wird.
+Dieses Szenario beschreibt den typischen Ablauf, wenn der Benutzer einen Bewegungsbefehl im Modus
+`virtual` ausführt. Dabei wird ein neuer Soll-Zustand für alle vier Gelenke an die Unity-Simulation
+gesendet, ohne dass auf eine Rückmeldung gewartet wird.
 
 [plantuml, target="diagram-runtime-virtual-async", format="png"]
 ----
@@ -29,7 +63,7 @@ participant "MyPalletizerController" as MPC
 participant "protocol" as Protocol
 participant "UDP Socket" as UDP
 participant "UnityUdpBridge" as Bridge
-participant "MyPalletizerAdapter" as Adapter
+participant "MyPalletizerArticulationAdapter" as Adapter
 participant "Joint Actuators" as Joints
 
 User -> Robot: send_angles(j1, j2, j3, j4, speed)
@@ -40,7 +74,8 @@ MPC -> MPC: _sim_angles aktualisieren
 MPC -> Protocol: build_move_msg(...)
 Protocol --> MPC: JSON-Payload
 MPC -> UDP: sendto(payload, 127.0.0.1:5005)
-UDP -> Bridge: UDP Paket empfangen
+UDP -> Bridge: UDP-Paket empfangen
+Bridge -> Bridge: Nachricht in Queue legen
 Bridge -> Adapter: move_joints(...)
 Adapter -> Joints: Zielwinkel setzen
 Joints -> Joints: Bewegung simulieren
@@ -49,19 +84,71 @@ Joints -> Joints: Bewegung simulieren
 
 Ablauf:
 
-1. Der Benutzer ruft `send_angles(...)` über die `Robot`-API auf.
-2. `Robot` delegiert den Befehl an den `MyPalletizerController`.
-3. Der Controller prüft die Werte, begrenzt Winkel und Geschwindigkeit und speichert die Zielwerte intern als Simulationszustand.
-4. Anschliessend wird über das `protocol`-Modul eine JSON-Nachricht erzeugt.
-5. Diese Nachricht wird per UDP an Port `5005` gesendet.
-6. In Unity empfängt `UnityUdpBridge` das Paket und gibt die Daten an den Adapter weiter.
-7. Der Adapter steuert die simulierten Gelenke an, wodurch die Bewegung in Unity sichtbar wird.
+. Der Benutzer ruft `send_angles(...)` über die `Robot`-API auf.
+. `Robot` delegiert den Befehl an den `MyPalletizerController`.
+. Der Controller prüft die Werte, begrenzt Winkel und Geschwindigkeit und speichert die Zielwerte intern als Simulationszustand.
+. Anschliessend wird über das `protocol`-Modul eine JSON-Nachricht erzeugt.
+. Diese Nachricht wird per UDP an Port `5005` gesendet.
+. In Unity empfängt `UnityUdpBridge` das Paket und legt die Nachricht in eine Queue.
+. Die Verarbeitung erfolgt im Unity-Hauptthread.
+. Der Adapter steuert die simulierten Gelenke an, wodurch die Bewegung in Unity sichtbar wird.
 
-Dieses Szenario ist der Standardfall für flüssige Bewegungen in der Simulation.
+Dieses Szenario ist der Standardfall für flüssige Bewegungen in der Simulation. Da nicht auf eine
+Bestätigung aus Unity gewartet wird, bleibt die Steuerung einfach und latenzarm.
 
-=== Szenario 2: Bewegung auf realer Hardware
+---
 
-Dieses Szenario beschreibt den Ablauf im Modus `real`. Im Unterschied zur Simulation wird der Befehl nicht per UDP gesendet, sondern über die Herstellerbibliothek `pymycobot` an den realen Roboter weitergegeben.
+=== Szenario 2: Synchrone Gelenkbewegung in der Simulation
+
+Dieses Szenario beschreibt den Ablauf einer synchronen Bewegung. Dabei sollen mehrere Gelenke gemeinsam
+bewegt werden, und die Unity-Seite wartet intern, bis alle Gelenke ihren Zielwinkel erreicht haben.
+
+[plantuml, target="diagram-runtime-virtual-sync", format="png"]
+----
+@startuml
+participant "Benutzer /\nPython-Skript" as User
+participant "Robot" as Robot
+participant "MyPalletizerController" as MPC
+participant "protocol" as Protocol
+participant "UDP Socket" as UDP
+participant "UnityUdpBridge" as Bridge
+participant "MyPalletizerArticulationAdapter" as Adapter
+participant "Joint Actuators" as Joints
+
+User -> Robot: sync_move_joints(j1, j2, j3, j4, speed)
+Robot -> MPC: sync_move_joints(...)
+MPC -> MPC: Winkel und Geschwindigkeit begrenzen
+MPC -> MPC: _sim_angles aktualisieren
+MPC -> Protocol: build_sync_move_msg(...)
+Protocol --> MPC: JSON-Payload
+MPC -> UDP: sendto(payload, 127.0.0.1:5005)
+UDP -> Bridge: UDP-Paket empfangen
+Bridge -> Bridge: Nachricht in Queue legen
+Bridge -> Adapter: MoveJointsSync(...)
+Adapter -> Joints: Zielwinkel setzen
+Joints -> Adapter: Ziel erreicht
+Adapter -> Adapter: Bewegung abschliessen
+@enduml
+----
+
+Ablauf:
+
+. Der Benutzer ruft `sync_move_joints(...)` über die `Robot`-API auf.
+. Der Controller validiert die Eingaben und erzeugt eine synchrone Bewegungsnachricht.
+. Die Nachricht wird über den Roboterkanal an Unity gesendet.
+. `UnityUdpBridge` verarbeitet die Nachricht im Unity-Hauptthread.
+. Der `MyPalletizerArticulationAdapter` setzt die Zielwinkel für alle Gelenke.
+. Die Adapter-Logik wartet innerhalb der Unity-Simulation, bis alle Gelenke ihren Zielwinkel erreicht haben.
+
+Wichtig ist, dass die Synchronität hier auf Unity-Seite stattfindet. Die Python-Seite erhält aktuell keine
+detaillierte Rückmeldung darüber, ob die Bewegung tatsächlich abgeschlossen wurde.
+
+---
+
+=== Szenario 3: Bewegung auf realer Hardware
+
+Dieses Szenario beschreibt den Ablauf im Modus `real`. Im Unterschied zur Simulation wird der Befehl nicht
+per UDP gesendet, sondern über die Herstellerbibliothek `pymycobot` an den realen Roboter weitergegeben.
 
 [plantuml, target="diagram-runtime-real", format="png"]
 ----
@@ -86,18 +173,22 @@ HW -> HW: Bewegung ausführen
 
 Ablauf:
 
-1. Der Benutzer verwendet dieselbe API wie im Simulationsbetrieb.
-2. `Robot` delegiert den Befehl an den `MyPalletizerController`.
-3. Der Controller validiert die Eingaben.
-4. Im Modus `real` wird der Befehl direkt an `pymycobot` weitergegeben.
-5. Die Herstellerbibliothek sendet das Kommando über die serielle Verbindung an den realen Roboter.
-6. Der Roboter führt die Bewegung physisch aus.
+. Der Benutzer verwendet dieselbe API wie im Simulationsbetrieb.
+. `Robot` delegiert den Befehl an den `MyPalletizerController`.
+. Der Controller validiert und begrenzt die Eingaben.
+. Im Modus `real` wird der Befehl direkt an `pymycobot` weitergegeben.
+. Die Herstellerbibliothek sendet das Kommando über die serielle Verbindung an den realen Roboter.
+. Der Roboter führt die Bewegung physisch aus.
 
 Dieses Szenario zeigt, dass dieselbe Benutzer-API auch für reale Hardware verwendet werden kann.
+Die technischen Details der Hardwarekommunikation bleiben vor dem Benutzer verborgen.
 
-=== Szenario 3: Gleichzeitige Ausführung in Simulation und Hardware
+---
 
-Im Modus `both` wird derselbe Befehl gleichzeitig an die Simulation und an den realen Roboter gesendet. Dies ist die eigentliche Digital-Twin-Funktion des Systems.
+=== Szenario 4: Gleichzeitige Ausführung in Simulation und Hardware
+
+Im Modus `both` wird derselbe Befehl sowohl an die Simulation als auch an den realen Roboter gesendet.
+Dies ist die eigentliche Digital-Twin-Funktion des Systems.
 
 [plantuml, target="diagram-runtime-both", format="png"]
 ----
@@ -122,7 +213,8 @@ par Simulation
   MPC -> Protocol: build_move_msg(...)
   Protocol --> MPC: JSON-Payload
   MPC -> UDP: sendto(payload, 127.0.0.1:5005)
-  UDP -> Bridge: UDP Paket empfangen
+  UDP -> Bridge: UDP-Paket empfangen
+  Bridge -> Bridge: Nachricht in Queue legen
 else Hardware
   MPC -> PMC: send_angles([j1,j2,j3,j4], speed)
   PMC -> HW: Bewegung ausführen
@@ -132,19 +224,125 @@ end
 
 Ablauf:
 
-1. Der Benutzer verwendet erneut dieselbe API.
-2. Der `MyPalletizerController` erkennt, dass der Modus `both` aktiv ist.
-3. Der Befehl wird parallel
-   * an die Unity-Simulation per UDP und
-   * an die Hardware über `pymycobot`
-   weitergegeben.
-4. Die Bewegung läuft dadurch gleichzeitig in der Simulation und auf dem realen Roboter.
+. Der Benutzer verwendet erneut dieselbe API.
+. Der `MyPalletizerController` erkennt, dass der Modus `both` aktiv ist.
+. Der Befehl wird an die Unity-Simulation per UDP gesendet.
+. Gleichzeitig wird der Befehl über `pymycobot` an die reale Hardware weitergegeben.
+. Die Bewegung läuft dadurch in der Simulation und auf dem realen Roboter.
 
-Dieser Modus eignet sich besonders für Demonstrationen und für den direkten Vergleich zwischen Simulation und realem Verhalten.
+Dieser Modus eignet sich besonders für Demonstrationen und für den direkten Vergleich zwischen Simulation
+und realem Verhalten.
 
-=== Szenario 4: Verwaltung der Simulationswelt
+Dabei ist zu beachten, dass Simulation und Hardware nicht exakt synchron laufen müssen. Unterschiede können
+durch Laufzeiten, physikalische Effekte, serielle Kommunikation oder Modellabweichungen entstehen.
+
+---
+
+=== Szenario 5: Werkzeug- und End-Effektor-Steuerung
+
+Dieses Szenario beschreibt die Steuerung von Greifer, Pumpe und aktivem Werkzeug. Diese Befehle folgen
+demselben Grundprinzip wie Bewegungsbefehle, werden jedoch in Unity an den `RobotToolManager` weitergegeben.
+
+[plantuml, target="diagram-runtime-tools", format="png"]
+----
+@startuml
+participant "Benutzer /\nPython-Skript" as User
+participant "Robot" as Robot
+participant "MyPalletizerController" as MPC
+participant "protocol" as Protocol
+participant "UDP Socket" as UDP
+participant "UnityUdpBridge" as Bridge
+participant "RobotToolManager" as ToolManager
+participant "SimpleGripperController" as Gripper
+participant "SuctionPumpController" as Pump
+participant "pymycobot\nMyPalletizer260" as PMC
+
+User -> Robot: set_end_effector("gripper")
+Robot -> MPC: set_end_effector(...)
+MPC -> Protocol: build_tool_msg(...)
+Protocol --> MPC: JSON-Payload
+
+alt virtual oder both
+  MPC -> UDP: sendto(payload, 127.0.0.1:5005)
+  UDP -> Bridge: UDP-Paket empfangen
+  Bridge -> ToolManager: set_end_effector(...)
+  ToolManager -> Gripper: aktivieren
+  ToolManager -> Pump: deaktivieren
+end
+
+alt real oder both
+  MPC -> PMC: Werkzeugbefehl senden
+end
+@enduml
+----
+
+Ablauf:
+
+. Der Benutzer wählt ein Werkzeug oder steuert Greifer beziehungsweise Pumpe.
+. `Robot` delegiert den Befehl an den `MyPalletizerController`.
+. Für die Simulation wird eine passende JSON-Nachricht erzeugt.
+. Unity empfängt die Nachricht über den Roboterkanal auf Port `5005`.
+. Der `RobotToolManager` aktiviert das passende Werkzeug oder leitet den Befehl an Greifer oder Pumpe weiter.
+. Im Modus `real` oder `both` wird zusätzlich der passende Hardwarebefehl über `pymycobot` ausgeführt.
+
+Beispiele für solche Befehle sind:
+
+* `set_end_effector("gripper")`
+* `set_gripper_state(...)`
+* `pump_on()`
+* `pump_off()`
+
+---
+
+=== Szenario 6: LED-Steuerung
+
+Die LED-Steuerung folgt ebenfalls dem Roboterkanal. RGB-Werte werden auf Python-Seite validiert und
+anschliessend an Simulation und/oder Hardware weitergeleitet.
+
+[plantuml, target="diagram-runtime-led", format="png"]
+----
+@startuml
+participant "Benutzer /\nPython-Skript" as User
+participant "Robot" as Robot
+participant "MyPalletizerController" as MPC
+participant "protocol" as Protocol
+participant "UDP Socket" as UDP
+participant "UnityUdpBridge" as Bridge
+participant "RobotLEDController" as LED
+participant "pymycobot\nMyPalletizer260" as PMC
+
+User -> Robot: set_color(r, g, b)
+Robot -> MPC: set_color(...)
+MPC -> MPC: RGB-Werte begrenzen
+
+alt virtual oder both
+  MPC -> Protocol: build_led_msg(...)
+  Protocol --> MPC: JSON-Payload
+  MPC -> UDP: sendto(payload, 127.0.0.1:5005)
+  UDP -> Bridge: UDP-Paket empfangen
+  Bridge -> LED: set_color(r, g, b)
+end
+
+alt real oder both
+  MPC -> PMC: set_color(r, g, b)
+end
+@enduml
+----
+
+Ablauf:
+
+. Der Benutzer ruft `set_color(r, g, b)` auf.
+. Der Controller begrenzt die RGB-Werte auf gültige Wertebereiche.
+. Für Unity wird eine JSON-Nachricht erzeugt und über Port `5005` gesendet.
+. In Unity aktualisiert der `RobotLEDController` die visuelle LED-Darstellung.
+. Im Modus `real` oder `both` wird zusätzlich die LED des realen Roboters gesetzt.
+
+---
+
+=== Szenario 7: Verwaltung der Simulationswelt
 
 Neben der Robotersteuerung unterstützt das System auch Änderungen an der Simulationswelt.
+Diese Befehle laufen nicht über `Robot`, sondern über die Klasse `World`.
 
 [plantuml, target="diagram-runtime-world", format="png"]
 ----
@@ -162,7 +360,8 @@ World -> World: Objekt validieren
 World -> Protocol: build_spawn_msg(...)
 Protocol --> World: JSON-Payload
 World -> UDP: sendto(payload, 127.0.0.1:5006)
-UDP -> Bridge: UDP Paket empfangen
+UDP -> Bridge: UDP-Paket empfangen
+Bridge -> Bridge: Nachricht in Queue legen
 Bridge -> WSM: spawn / delete / clear
 WSM -> Scene: Szene aktualisieren
 @enduml
@@ -170,11 +369,109 @@ WSM -> Scene: Szene aktualisieren
 
 Ablauf:
 
-1. Der Benutzer erzeugt ein Objekt und ruft `world.spawn(obj)` auf.
-2. `World` prüft das Objekt und erzeugt eine passende JSON-Nachricht.
-3. Die Nachricht wird per UDP an Port `5006` gesendet.
-4. `WorldUdpBridge` empfängt die Nachricht und gibt sie an den `WorldSpawnManager` weiter.
-5. Dieser aktualisiert die Unity-Szene und erzeugt, löscht oder leert Objekte.
+. Der Benutzer erzeugt ein Objekt und ruft `world.spawn(obj)` auf.
+. `World` prüft das Objekt und erzeugt eine passende JSON-Nachricht.
+. Die Nachricht wird per UDP an Port `5006` gesendet.
+. `WorldUdpBridge` empfängt die Nachricht und legt sie in eine Queue.
+. Die Verarbeitung erfolgt im Unity-Hauptthread.
+. Der `WorldSpawnManager` aktualisiert die Unity-Szene und erzeugt, löscht oder leert Objekte.
 
-Die Trennung zwischen Roboter- und Weltkanal ist wichtig, damit häufige Bewegungsbefehle und seltenere Weltänderungen unabhängig voneinander verarbeitet werden können.
+Die Trennung zwischen Roboter- und Weltkanal ist wichtig, damit häufige Bewegungsbefehle und seltenere
+Weltänderungen unabhängig voneinander verarbeitet werden können.
 
+---
+
+=== Szenario 8: Laden eines Presets
+
+Presets ermöglichen das schnelle Erzeugen wiederholbarer Szenarien. Dabei werden mehrere Weltobjekte
+nacheinander über den Weltkanal an Unity übertragen.
+
+[plantuml, target="diagram-runtime-preset", format="png"]
+----
+@startuml
+participant "Benutzer /\nPython-Skript" as User
+participant "World" as World
+participant "presets" as Presets
+participant "objects" as Objects
+participant "protocol" as Protocol
+participant "UDP Socket" as UDP
+participant "WorldUdpBridge" as Bridge
+participant "WorldSpawnManager" as WSM
+
+User -> World: load_preset("three_blocks", clear_first=True)
+World -> Presets: Preset suchen
+Presets --> World: Liste von Objekten
+
+alt clear_first == True
+  World -> Protocol: build_clear_msg()
+  Protocol --> World: JSON-Payload
+  World -> UDP: sendto(clear, 127.0.0.1:5006)
+end
+
+loop für jedes Objekt im Preset
+  World -> Objects: Objekt lesen
+  World -> World: Objekt validieren
+  World -> Protocol: build_spawn_msg(obj)
+  Protocol --> World: JSON-Payload
+  World -> UDP: sendto(spawn, 127.0.0.1:5006)
+  UDP -> Bridge: UDP-Paket empfangen
+  Bridge -> WSM: spawn
+end
+@enduml
+----
+
+Ablauf:
+
+. Der Benutzer ruft `load_preset(...)` auf.
+. `World` lädt das gewünschte Preset aus dem Modul `presets`.
+. Falls `clear_first` aktiv ist, wird zuerst eine `clear`-Nachricht an Unity gesendet.
+. Anschliessend werden alle Objekte des Presets nacheinander validiert und per `spawn`-Nachricht übertragen.
+. Unity erzeugt die Objekte in der Szene.
+
+Presets dienen vor allem der Reproduzierbarkeit von Tests und Demonstrationen.
+
+---
+
+=== Fehler- und Grenzfälle zur Laufzeit
+
+Die wichtigsten Laufzeitgrenzen ergeben sich aus Kommunikation, Hardwareverfügbarkeit und Modellgenauigkeit.
+
+[cols="1,2,2", options="header"]
+|===
+| Situation | Verhalten | Auswirkung
+
+| **Ungültige Gelenkwinkel**
+| Werte werden auf definierte Grenzwerte begrenzt.
+| Der Roboter erhält nur zulässige Sollwerte.
+
+| **Ungültige Geschwindigkeit**
+| Die Geschwindigkeit wird auf den erlaubten Bereich begrenzt.
+| Zu schnelle oder ungültige Bewegungen werden vermieden.
+
+| **Ungültige RGB-Werte**
+| RGB-Werte werden auf den Bereich `0` bis `255` begrenzt.
+| Die LED-Steuerung bleibt gültig.
+
+| **UDP-Paketverlust**
+| Es erfolgt keine automatische Wiederholung durch UDP.
+| Bei zustandsbasierten Bewegungsbefehlen kann ein späteres Paket den Zielzustand wieder korrigieren.
+
+| **Unity nicht gestartet**
+| UDP-Nachrichten können gesendet werden, werden aber nicht verarbeitet.
+| In der Simulation ist keine Auswirkung sichtbar.
+
+| **Hardware nicht verbunden**
+| Hardwarebefehle können im Modus `real` oder `both` fehlschlagen.
+| Der Benutzer muss Verbindung, Port und Stromversorgung prüfen.
+
+| **Unterschiedliche Laufzeiten in `both`**
+| Simulation und Hardware reagieren nicht zwingend exakt gleichzeitig.
+| Kleine Abweichungen zwischen virtuellem und realem Verhalten sind möglich.
+
+| **Ungültiges Weltobjekt**
+| `World` validiert Objektparameter vor dem Versand.
+| Fehlerhafte Objekte werden nicht oder nur nach Korrektur übertragen.
+
+|===
+
+---

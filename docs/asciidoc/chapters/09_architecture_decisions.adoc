@@ -4,11 +4,23 @@ ifndef::imagesdir[:imagesdir: ../images]
 == Architecture Decisions
 
 Die folgenden Architectural Decision Records (ADR) beschreiben wichtige Architekturentscheidungen des Projekts.
+Sie zeigen, welche Alternativen betrachtet wurden, welche Lösung gewählt wurde und welche Konsequenzen daraus entstehen.
 
 === ADR 1: Einheitliche Python-API für Simulation und Hardware
 
 * **Kontext**: Der Benutzer soll nicht zwischen verschiedenen APIs für Simulation und reale Hardware unterscheiden müssen.
 * **Entscheidung**: Die Klassen `Robot` und `World` bilden die zentrale Benutzerschnittstelle. Intern wird die eigentliche Ausführung an den `MyPalletizerController` oder an die Weltkommunikation delegiert.
+
+* **Vorteile gegenüber getrennten APIs**:
+  ** Der Benutzer muss nur eine einheitliche Schnittstelle lernen.
+  ** Beispielcode kann einfacher zwischen Simulation und realem Roboter wiederverwendet werden.
+  ** Die Bedienung wird konsistenter, da dieselben Methoden unabhängig vom Ausführungsmodus verwendet werden können.
+  ** Änderungen an der internen Kommunikation wirken sich weniger stark auf den Benutzercode aus.
+
+* **Nachteile gegenüber getrennten APIs**:
+  ** Die Python-API muss mehr Logik übernehmen, zum Beispiel Moduswahl, Validierung und Weiterleitung.
+  ** Unterschiede zwischen Simulation und echter Hardware können durch die einheitliche API teilweise verdeckt werden.
+  ** Fehler können schwieriger zu lokalisieren sein, da zusätzliche Abstraktionsschichten beteiligt sind.
 
 * **Konsequenz**: Die Benutzung des Systems wird einfacher und konsistenter. Gleichzeitig übernimmt die Python-Seite mehr Verantwortung, da sie Validierung, Moduswahl und Weiterleitung der Befehle kapselt.
 
@@ -17,6 +29,18 @@ Die folgenden Architectural Decision Records (ADR) beschreiben wichtige Architek
 * **Kontext**: Der reale Roboter soll unterstützt werden, ohne dass der Benutzer direkt von der Herstellerbibliothek abhängig ist.
 * **Entscheidung**: Die Bibliothek `pymycobot` wird nur intern im `MyPalletizerController` verwendet. Der Benutzer arbeitet ausschliesslich mit der eigenen `Robot`-Schnittstelle.
 
+* **Vorteile gegenüber direkter Nutzung von `pymycobot`**:
+  ** Die öffentliche API bleibt stabiler, auch wenn sich die Herstellerbibliothek ändert.
+  ** Der Benutzercode wird unabhängiger von herstellerspezifischen Details.
+  ** Hardware-spezifische Fehlerbehandlung und Validierung können zentral umgesetzt werden.
+  ** Ein späterer Wechsel oder die Erweiterung auf andere Roboter wird einfacher.
+
+* **Nachteile gegenüber direkter Nutzung von `pymycobot`**:
+  ** Nicht alle Funktionen der Herstellerbibliothek sind automatisch verfügbar.
+  ** Die eigene Abstraktionsschicht muss gepflegt und getestet werden.
+  ** Neue Funktionen aus `pymycobot` müssen manuell in die eigene API übernommen werden.
+  ** Bei Fehlern muss teilweise geprüft werden, ob sie in der eigenen Schicht oder in `pymycobot` entstehen.
+
 * **Konsequenz**: Externe Abhängigkeiten bleiben gekapselt und die API nach aussen bleibt stabiler. Dafür entsteht eine zusätzliche Abstraktionsschicht, die gepflegt werden muss.
 
 === ADR 3: Trennung von Simulation und realer Hardware
@@ -24,13 +48,36 @@ Die folgenden Architectural Decision Records (ADR) beschreiben wichtige Architek
 * **Kontext**: Dasselbe System soll sowohl mit der Simulation als auch mit dem realen Roboter funktionieren.
 * **Entscheidung**: Die Simulation wird über UDP angesprochen, die reale Hardware über `pymycobot` und die serielle Verbindung. Die Auswahl erfolgt intern über die Modi `virtual`, `real` und `both`.
 
-* **Konsequenz**: Dieselbe Python-API kann für Simulation, reale Hardware oder beide gleichzeitig verwendet werden. Dadurch bleibt die Benutzerschnittstelle einfach, obwohl intern unterschiedliche Kommunikationswege verwendet werden.
+* **Vorteile gegenüber einer gemeinsamen Ausführungsschicht**:
+  ** Die technischen Unterschiede zwischen Simulation und Hardware können sauber behandelt werden.
+  ** Die Simulation bleibt unabhängig von der seriellen Roboterkommunikation.
+  ** Der reale Roboter kann über die vom Hersteller vorgesehene Bibliothek angesteuert werden.
+  ** Der Modus `both` ermöglicht den parallelen Vergleich zwischen Simulation und echter Bewegung.
 
+* **Nachteile gegenüber einer gemeinsamen Ausführungsschicht**:
+  ** Es müssen mehrere Kommunikationswege gepflegt werden.
+  ** Das Verhalten von Simulation und realem Roboter kann voneinander abweichen.
+  ** Tests müssen sicherstellen, dass alle Modi korrekt funktionieren.
+  ** Die interne Architektur wird komplexer, weil Befehle je nach Modus unterschiedlich weitergeleitet werden.
+
+* **Konsequenz**: Dieselbe Python-API kann für Simulation, reale Hardware oder beide gleichzeitig verwendet werden. Dadurch bleibt die Benutzerschnittstelle einfach, obwohl intern unterschiedliche Kommunikationswege verwendet werden.
 
 === ADR 4: Trennung von Roboter- und Weltkommunikation
 
 * **Kontext**: Das System verarbeitet zwei unterschiedliche Arten von Befehlen: Roboterbefehle und Befehle zur Verwaltung der Simulationswelt.
 * **Entscheidung**: Diese beiden Bereiche werden über getrennte UDP-Kanäle umgesetzt. Port `5005` wird für die Robotersteuerung verwendet, Port `5006` für Weltbefehle.
+
+* **Vorteile gegenüber einem gemeinsamen UDP-Kanal**:
+  ** Roboterbefehle und Weltbefehle sind klar voneinander getrennt.
+  ** Die Verarbeitung auf Unity-Seite kann einfacher strukturiert werden.
+  ** Fehler in der Weltverwaltung beeinflussen die Robotersteuerung weniger direkt.
+  ** Die Kommunikation ist leichter zu erweitern, wenn später weitere Weltbefehle hinzukommen.
+
+* **Nachteile gegenüber einem gemeinsamen UDP-Kanal**:
+  ** Es müssen zwei Ports konfiguriert und dokumentiert werden.
+  ** Firewall- oder Netzwerkeinstellungen können etwas aufwendiger werden.
+  ** Die Python-Seite muss wissen, welcher Befehl über welchen Kanal gesendet wird.
+  ** Bei der Fehlersuche müssen zwei Kommunikationswege berücksichtigt werden.
 
 * **Konsequenz**: Die Kommunikation bleibt klar getrennt. Häufige Bewegungsbefehle des Roboters werden nicht mit Weltbefehlen wie `spawn`, `delete` oder `clear` vermischt.
 
@@ -39,10 +86,75 @@ Die folgenden Architectural Decision Records (ADR) beschreiben wichtige Architek
 * **Kontext**: Typische Testszenarien sollen schnell geladen und reproduzierbar ausgeführt werden können.
 * **Entscheidung**: Vordefinierte Szenarien werden als Presets auf Python-Seite bereitgestellt und über `World.load_preset(...)` geladen.
 
+* **Vorteile gegenüber manueller Szenenerstellung**:
+  ** Testszenarien können schnell und wiederholbar aufgebaut werden.
+  ** Demonstrationen werden zuverlässiger, da immer dieselbe Ausgangssituation geladen wird.
+  ** Benutzer müssen häufig benötigte Objekte nicht jedes Mal manuell erstellen.
+  ** Presets eignen sich gut für Unterrichtsbeispiele und wiederholbare Tests.
+
+* **Nachteile gegenüber manueller Szenenerstellung**:
+  ** Presets müssen gepflegt werden, wenn sich Objekte oder Szenenlogik ändern.
+  ** Die Flexibilität ist geringer als bei komplett frei definierten Szenarien.
+  ** Zu viele Presets können unübersichtlich werden.
+  ** Benutzer könnten sich zu stark auf vordefinierte Szenarien verlassen und Sonderfälle weniger testen.
+
 * **Konsequenz**: Tests und Demonstrationen werden einfacher und konsistenter. Gleichzeitig müssen Presets gepflegt werden, wenn sich die Simulationswelt ändert.
 
 === ADR 6: Verwendung von Articulation Bodies in Unity
 
 * **Kontext**: Der Roboterarm besteht aus mehreren Gelenken, die in der Simulation stabil und nachvollziehbar bewegt werden müssen.
 * **Entscheidung**: Für die Simulation der Gelenkkette werden in Unity `ArticulationBody`-Komponenten verwendet.
-* **Konsequenz**: Die Abbildung des Roboterarms in Unity wird robuster und besser für zusammenhängende Gelenkstrukturen geeignet. Gleichzeitig wird die Konfiguration in Unity etwas aufwendiger.
+
+* **Vorteile gegenüber einfachen `Transform`-Animationen oder `Rigidbody`-Konstruktionen**:
+  ** `ArticulationBody` ist besser für zusammenhängende Gelenkstrukturen geeignet.
+  ** Gelenkbewegungen können physikalisch nachvollziehbarer simuliert werden.
+  ** Die Stabilität bei mehrgliedrigen Roboterarmen ist in der Regel besser als bei vielen einzelnen `Rigidbody`-Objekten.
+  ** Einschränkungen wie Rotationsachsen und Gelenkgrenzen lassen sich strukturierter abbilden.
+
+* **Nachteile gegenüber einfachen `Transform`-Animationen oder `Rigidbody`-Konstruktionen**:
+  ** Die Einrichtung in Unity ist komplexer.
+  ** Die Konfiguration der Gelenke, Achsen und Limits erfordert mehr Sorgfalt.
+  ** Für rein visuelle Bewegungen wäre eine einfache `Transform`-Animation leichter umzusetzen.
+  ** Fehlerhafte Parameter können zu unerwartetem physikalischem Verhalten führen.
+
+* **Konsequenz**: Die Abbildung des Roboterarms in Unity wird robuster und besser für zusammenhängende Gelenkstrukturen geeignet. Gleichzeitig wird die Konfiguration in Unity aufwendiger.
+
+=== ADR 7: Umgang mit fehlerhaften CAD-Modellen des Herstellers
+
+* **Kontext**: Für die Simulation wurden CAD-Modelle des Herstellers verwendet. Dabei zeigte sich, dass diese Modelle nicht vollständig mit dem realen MyPalletizer 260 M5 übereinstimmen. Dadurch kann der simulierte Roboter geometrisch vom echten Roboter abweichen.
+
+* **Entscheidung**: Die vorhandenen CAD-Modelle werden trotzdem als Grundlage für die visuelle Simulation verwendet. Abweichungen werden dokumentiert und bei Bedarf manuell in Unity korrigiert oder durch angepasste Komponenten kompensiert.
+
+* **Vorteile gegenüber einer vollständigen Eigenmodellierung**:
+  ** Die Simulation kann schneller aufgebaut werden.
+  ** Es muss kein vollständiges 3D-Modell des Roboters von Grund auf erstellt werden.
+  ** Die Herstellerdaten bieten trotz Abweichungen eine brauchbare visuelle Grundlage.
+  ** Der Aufwand bleibt im Rahmen des Projekts realistisch.
+
+* **Nachteile gegenüber einer vollständigen Eigenmodellierung**:
+  ** Die Simulation stimmt geometrisch nicht vollständig mit dem realen Roboter überein.
+  ** Gelenkpositionen, Abstände oder Bauteilformen können von der Hardware abweichen.
+  ** Kollisionen und Reichweiten können in der Simulation anders wirken als in der Realität.
+  ** Manuelle Korrekturen in Unity können zusätzlichen Aufwand verursachen.
+
+* **Konsequenz**: Die Simulation ist ausreichend für Visualisierung, Lernen und grundlegende Tests, aber nicht für hochpräzise geometrische oder kollisionskritische Analysen geeignet. Die Abweichungen der CAD-Modelle müssen als bekannte Einschränkung dokumentiert werden.
+
+=== ADR 8: Keine Simulation der Roboterkamera
+
+* **Kontext**: Der reale MyPalletizer kann mit einer Kamera verwendet werden. Diese Kamera ist jedoch stark von realen Umgebungsbedingungen abhängig, zum Beispiel Beleuchtung, Perspektive, Bildrauschen, Fokus, Kalibrierung und realen Objekteigenschaften.
+
+* **Entscheidung**: Die Kamera des realen Roboters wird in der Unity-Simulation nicht vollständig nachgebildet. Die Simulation konzentriert sich auf Roboterbewegung, Werkzeuge, LED-Steuerung und Weltobjekte.
+
+* **Vorteile gegenüber einer simulierten Kamera**:
+  ** Der Entwicklungsaufwand bleibt deutlich geringer.
+  ** Die Simulation bleibt fokussiert auf die Kernfunktionen des Projekts.
+  ** Es müssen keine komplexen Kameramodelle, Bildverarbeitung oder Kalibrierungsdaten nachgebildet werden.
+  ** Fehlerquellen durch unrealistische Kamerabilder werden vermieden.
+
+* **Nachteile gegenüber einer simulierten Kamera**:
+  ** Kamerabasierte Anwendungen können nicht vollständig in der Simulation getestet werden.
+  ** Bildverarbeitung, Objekterkennung oder visuelle Kalibrierung müssen weiterhin mit realer Hardware geprüft werden.
+  ** Die Simulation bildet nicht alle möglichen Einsatzszenarien des Roboters ab.
+  ** Der Digital Twin ist in Bezug auf sensorisches Feedback eingeschränkt.
+
+* **Konsequenz**: Die Simulation eignet sich für Bewegungsabläufe, Werkzeugverhalten und Szenarien mit bekannten Objekten. Kamerabasierte Funktionen werden jedoch nicht abgedeckt und müssen separat mit der realen Hardware getestet werden.

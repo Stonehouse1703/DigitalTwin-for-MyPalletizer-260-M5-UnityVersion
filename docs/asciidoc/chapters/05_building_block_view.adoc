@@ -3,28 +3,52 @@ ifndef::imagesdir[:imagesdir: ../images]
 [[section-building-block-view]]
 == Building Block View
 
-Die Bausteinsicht beschreibt die statische Struktur des Systems und zeigt, wie es in einzelne Bausteine aufgeteilt ist. Dabei werden sowohl die Python-Seite als auch die Unity-Seite betrachtet. Zusätzlich wird gezeigt, wie der reale Roboter und die Herstellerbibliothek `pymycobot` eingebunden sind.
+Die Bausteinsicht beschreibt die statische Struktur des Systems. Sie zeigt, aus welchen
+Komponenten das System besteht, welche Verantwortlichkeiten diese Komponenten besitzen und
+wie sie miteinander zusammenarbeiten.
+
+Dabei werden sowohl die Python-Seite als auch die Unity-Seite betrachtet. Zusätzlich wird
+dargestellt, wie der reale MyPalletizer 260 M5 und die Herstellerbibliothek `pymycobot`
+in die Architektur eingebunden sind.
+
+Das Ziel der Bausteinsicht ist es, die interne Struktur des Systems nachvollziehbar zu machen.
+Insbesondere wird gezeigt, wie die einheitliche Python-API von der konkreten Ausführung in
+Simulation und Hardware entkoppelt wird.
 
 === Whitebox Overall System (Level 1)
 
-Auf der obersten Ebene besteht das System aus einer Python-basierten Steuerungs- und API-Schicht sowie einer Unity-basierten Simulationsschicht. Der reale Roboter ist ein externes System, das über die Python-Seite angebunden wird.
+Auf der obersten Ebene besteht das System aus einer Python-basierten Steuerungs- und API-Schicht
+sowie einer Unity-basierten Simulationsschicht. Der reale Roboter ist ein externes Zielsystem,
+das über die Python-Seite angebunden wird.
+
+Die Python-Schicht bildet die zentrale Schnittstelle für den Benutzer. Sie nimmt API-Aufrufe
+entgegen, validiert Eingaben und entscheidet anhand des gewählten Betriebsmodus, ob ein Befehl
+an die Simulation, an den realen Roboter oder an beide Zielsysteme weitergeleitet wird.
+
+Die Unity-Schicht visualisiert den Roboter und die Simulationswelt. Sie empfängt JSON-Nachrichten
+über UDP und setzt diese in Bewegungen, Werkzeugzustände oder Änderungen der Simulationswelt um.
 
 [plantuml, target="diagram-building-blocks-l1", format="png"]
 ----
 @startuml
-!include <c4/C4_Component.puml>
+skinparam rectangle {
+    RoundCorner 15
+}
+skinparam componentStyle rectangle
 
-System_Boundary(digital_twin_system, "Digital Twin System") {
-    Container(python_layer, "Python Control Layer", "Python", "Benutzernahe API, Steuerlogik und Kommunikation")
-    Container(unity_layer, "Unity Simulation Layer", "Unity / C#", "Simulation, Visualisierung und Weltverwaltung")
+actor "Benutzer" as User
+
+rectangle "Digital Twin System" as DTS {
+    rectangle "Python Control Layer\n(Python)" as PythonLayer
+    rectangle "Unity Simulation Layer\n(Unity / C#)" as UnityLayer
 }
 
-System_Ext(real_robot, "MyPalletizer 260 M5", "Realer Roboter")
-System_Ext(user, "Benutzer", "Schreibt Python-Code zur Steuerung")
+rectangle "MyPalletizer 260 M5\n(Realer Roboter)" as RealRobot
 
-Rel(user, python_layer, "nutzt", "Python API")
-Rel(python_layer, unity_layer, "sendet Steuer- und Weltbefehle", "UDP / JSON")
-Rel(python_layer, real_robot, "steuert", "Serial / USB")
+User --> PythonLayer : nutzt Python-API
+PythonLayer --> UnityLayer : UDP / JSON\nRoboter- und Weltbefehle
+PythonLayer --> RealRobot : Serial / USB\nüber pymycobot
+
 @enduml
 ----
 
@@ -35,13 +59,21 @@ Rel(python_layer, real_robot, "steuert", "Serial / USB")
 | Baustein | Beschreibung
 
 | **Python Control Layer**
-| Stellt die zentrale Schnittstelle für den Benutzer bereit. Diese Schicht kapselt die internen Unterschiede zwischen Simulation, realer Hardware und kombiniertem Betrieb.
+| Stellt die zentrale Schnittstelle für den Benutzer bereit.
+Diese Schicht kapselt die Unterschiede zwischen Simulation, realer Hardware und kombiniertem Betrieb.
+Sie enthält unter anderem die Klassen `Robot`, `World`, den `MyPalletizerController` sowie Hilfsmodule für Protokoll, Presets und Objekte.
 
 | **Unity Simulation Layer**
 | Empfängt Befehle aus Python und setzt diese in simulierte Bewegungen, Werkzeugfunktionen und Änderungen der Simulationswelt um.
+Die Unity-Schicht enthält getrennte Komponenten für Roboterbefehle und Weltbefehle.
 
-| **Realer Roboter (MyPalletizer 260 M5)**
-| Führt Befehle auf der physischen Hardware aus. Die Ansteuerung erfolgt über die Herstellerbibliothek `pymycobot`.
+| **Realer Roboter: MyPalletizer 260 M5**
+| Führt Befehle auf der physischen Hardware aus.
+Die Ansteuerung erfolgt über die Herstellerbibliothek `pymycobot`, welche innerhalb der Python-Schicht gekapselt ist.
+
+| **Benutzer**
+| Schreibt Python-Code und verwendet die bereitgestellte API.
+Der Benutzer arbeitet nicht direkt mit UDP, Unity-internen Komponenten oder `pymycobot`.
 
 |===
 
@@ -51,11 +83,18 @@ Auf Level 2 werden die internen Bausteine der Python- und Unity-Schicht genauer 
 
 ==== Whitebox Python Control Layer
 
-Die Python-Schicht ist so aufgebaut, dass der Benutzer mit einer einfachen API arbeitet, während die eigentliche Verteilung auf Simulation und Hardware intern erfolgt.
+Die Python-Schicht ist so aufgebaut, dass der Benutzer mit einer einfachen API arbeitet,
+während die eigentliche Verteilung auf Simulation und Hardware intern erfolgt.
+
+Die beiden wichtigsten Einstiegspunkte für den Benutzer sind `Robot` und `World`.
+`Robot` ist für Roboterbewegungen, Werkzeuge und LED-Steuerung zuständig.
+`World` ist für Simulationsobjekte und Szenarien zuständig.
 
 [plantuml, target="diagram-python-l2", format="png"]
 ----
 @startuml
+skinparam componentStyle rectangle
+
 component "Robot" as Robot
 component "MyPalletizerController" as MPC
 component "World" as World
@@ -65,11 +104,16 @@ component "objects" as Objects
 component "pymycobot\n(MyPalletizer260)" as PyMyCobot
 
 Robot --> MPC : delegiert Roboterbefehle
-World --> Protocol : nutzt Nachrichtenaufbau
-World --> Presets : lädt vordefinierte Szenarien
-Presets --> Objects : verwendet Box / Sphere / Cylinder
+
 MPC --> Protocol : erstellt JSON-Nachrichten
 MPC --> PyMyCobot : steuert reale Hardware
+
+World --> Protocol : erstellt Welt-Nachrichten
+World --> Presets : lädt vordefinierte Szenarien
+World --> Objects : verwendet Weltobjekte
+
+Presets --> Objects : verwendet Box / Sphere / Cylinder
+
 @enduml
 ----
 
@@ -80,58 +124,84 @@ MPC --> PyMyCobot : steuert reale Hardware
 | Baustein | Beschreibung
 
 | **Robot**
-| Benutzernahe API für die Robotersteuerung. Diese Klasse kapselt die Nutzung des Controllers und bietet einfache Methoden wie zum Beispiel `send_angles()`, `sync_move_joints()`, `set_color()` `set_gripper_state()`, und `pump_on()`. Zudem validiert sie die Grundkonfiguration, z. B. den benötigten Serial-Port in den Modi `real` und `both`.
+| Benutzernahe API für die Robotersteuerung.
+Diese Klasse kapselt die Nutzung des Controllers und bietet einfache Methoden wie `send_angles()`, `sync_move_joints()`, `set_color()`, `set_gripper_state()` und `pump_on()`.
+Zudem validiert sie die Grundkonfiguration, zum Beispiel den benötigten Serial-Port in den Modi `real` und `both`.
 
 | **MyPalletizerController**
-| Zentrale Steuerkomponente für den Roboter. Diese Klasse entscheidet anhand des Modus `virtual`, `real` oder `both`, ob ein Befehl an die Simulation, an den realen Roboter oder an beide weitergeleitet wird. Zusätzlich begrenzt sie Gelenkwinkel und Geschwindigkeit und verwaltet den aktuellen Simulationszustand der Gelenke.
+| Zentrale Steuerkomponente für den Roboter.
+Diese Klasse entscheidet anhand des Modus `virtual`, `real` oder `both`, ob ein Befehl an die Simulation, an den realen Roboter oder an beide weitergeleitet wird.
+Zusätzlich begrenzt sie Gelenkwinkel und Geschwindigkeit und verwaltet den aktuellen Simulationszustand der Gelenke.
 
 | **World**
-| API für die Verwaltung der Simulationswelt. Diese Klasse ist getrennt von der Robotersteuerung und bietet Funktionen wie zum Beipsiel `spawn()`, `delete()` und `load_preset()`.
+| Benutzernahe API für die Verwaltung der Simulationswelt.
+Diese Klasse ist bewusst von der Robotersteuerung getrennt und bietet Funktionen wie `spawn()`, `delete()`, `clear()`, `list_presets()` und `load_preset()`.
 
 | **protocol**
-| Hilfsmodul zum Aufbau der JSON-Nachrichten. Es definiert sowohl Roboterbefehle wie zum Beispiel `move_joints`, `led` und `pump` als auch Weltbefehle wie `spawn` und `delet`.
+| Hilfsmodul zum Aufbau der JSON-Nachrichten.
+Es definiert sowohl Roboterbefehle wie `move_joints`, `sync_move_joints`, `led`, `set_gripper_state` und `pump` als auch Weltbefehle wie `spawn`, `delete` und `clear`.
 
 | **presets**
-| Enthält vordefinierte Szenarien für die Simulation, z. B. `empty`, `three_blocks`, `pick_and_place_basic` und `sorting_task`.
+| Enthält vordefinierte Szenarien für die Simulation, zum Beispiel `empty`, `three_blocks`, `pick_and_place_basic` und `sorting_task`.
+Presets ermöglichen wiederholbare Test- und Demonstrationsszenarien.
 
 | **objects**
-| Definiert die einfachen Weltobjekte `Box`, `Sphere` und `Cylinder`, welche durch die `World`-Klasse in die Simulation eingebracht werden können.
+| Definiert einfache Weltobjekte wie `Box`, `Sphere` und `Cylinder`.
+Diese Objekte können durch die `World`-Klasse in die Simulation eingebracht werden und enthalten Informationen zu Position, Rotation, Skalierung und Farbe.
 
 | **pymycobot**
-| Externe Herstellerbibliothek zur Ansteuerung des realen MyPalletizer. Sie wird nicht direkt vom Benutzer verwendet, sondern ausschliesslich intern über den `MyPalletizerController`.
+| Externe Herstellerbibliothek zur Ansteuerung des realen MyPalletizer.
+Sie wird nicht direkt vom Benutzer verwendet, sondern ausschliesslich intern über den `MyPalletizerController`.
 
 |===
 
 ===== Architekturidee der Python-Schicht
 
-Wie schon im Kapitel <_strategie_zur_kommunikationstrennung, Strategie zur Kommunikationstrennung>> beschrieben, trennt die Python-Schicht und Unity-Schicht bewusst zwischen Robotersteuerung und Weltverwaltung. `Robot` und `World` bilden zwei eigenständige Zugriffspunkte für den Benutzer. Intern übernimmt `MyPalletizerController` die eigentliche Orchestrierung der Roboterbefehle, während `World` einen separaten Kommunikationsweg für Weltänderungen verwendet.
+Wie bereits im Kapitel <<_strategie_zur_kommunikationstrennung, Strategie zur Kommunikationstrennung>>
+beschrieben, trennt die Python-Schicht bewusst zwischen Robotersteuerung und Weltverwaltung.
+
+`Robot` und `World` bilden zwei eigenständige Zugriffspunkte für den Benutzer.
+Intern übernimmt der `MyPalletizerController` die Orchestrierung der Roboterbefehle,
+während `World` einen separaten Kommunikationsweg für Weltänderungen verwendet.
 
 Dadurch ergibt sich eine klare Aufteilung:
 
 * **Robot** für Bewegungen, Werkzeuge und LED
 * **World** für Objekte und Szenarien
 * **protocol** für die gemeinsame Nachrichtenstruktur
+* **presets** für wiederholbare Szenarien
+* **objects** für die Beschreibung von Weltobjekten
 * **pymycobot** für die reale Hardwareanbindung
+
+Diese Trennung reduziert Abhängigkeiten zwischen den Bausteinen und erleichtert spätere Erweiterungen.
 
 ==== Whitebox Unity Simulation Layer
 
-Die Unity-Schicht ist ebenfalls in zwei Hauptbereiche getrennt: Robotersteuerung und Weltverwaltung. Dadurch werden zeitkritische Roboterbefehle nicht mit Weltänderungen vermischt.
+Die Unity-Schicht ist ebenfalls in zwei Hauptbereiche getrennt: Robotersteuerung und Weltverwaltung.
+Dadurch werden zeitkritische Roboterbefehle nicht mit Weltänderungen vermischt.
+
+Roboterbefehle werden über den Port `5005` empfangen.
+Weltbefehle werden über den Port `5006` empfangen.
 
 [plantuml, target="diagram-unity-l2", format="png"]
 ----
 @startuml
-component "UnityUdpBridge" as UUB
+skinparam componentStyle rectangle
+
+component "UnityUdpBridge\nPort 5005" as UUB
 component "MyPalletizerArticulationAdapter" as Adapter
 component "RobotToolManager" as ToolManager
 component "RobotLEDController" as LED
-component "WorldUdpBridge" as WUB
+
+component "WorldUdpBridge\nPort 5006" as WUB
 component "WorldSpawnManager" as WSM
 
-UUB --> Adapter : move_joints / sync_move_joints
+UUB --> Adapter : move_joints /\nsync_move_joints
 UUB --> ToolManager : set_end_effector /\nset_gripper_state / pump
 UUB --> LED : led
 
 WUB --> WSM : spawn / delete / clear
+
 @enduml
 ----
 
@@ -142,22 +212,30 @@ WUB --> WSM : spawn / delete / clear
 | Baustein | Beschreibung
 
 | **UnityUdpBridge**
-| Empfängt Roboterbefehle über UDP auf Port `5005`. Die empfangenen JSON-Nachrichten werden zunächst in eine Queue gelegt und anschliessend im Unity-Hauptthread verarbeitet.
+| Empfängt Roboterbefehle über UDP auf Port `5005`.
+Die empfangenen JSON-Nachrichten werden zunächst in eine Queue gelegt und anschliessend im Unity-Hauptthread verarbeitet.
+Dadurch wird verhindert, dass Unity-Objekte direkt aus einem Netzwerk-Thread verändert werden.
 
 | **MyPalletizerArticulationAdapter**
-| Übersetzt Gelenkbefehle in konkrete Bewegungen der vier simulierten Gelenke. Dabei werden sowohl asynchrone als auch synchrone Bewegungen unterstützt.
+| Übersetzt Gelenkbefehle in konkrete Bewegungen der vier simulierten Gelenke.
+Dabei werden sowohl asynchrone als auch synchrone Bewegungen unterstützt.
+Die eigentliche Gelenkbewegung wird an einzelne `ArticulationJointActuator`-Komponenten delegiert.
 
 | **RobotToolManager**
-| Verwaltet die aktiven Werkzeuge des Roboters innerhalb der Simulation. Diese Komponente reagiert auf Befehle zum Werkzeugwechsel sowie auf Greifer- und Pumpenbefehle.
+| Verwaltet die aktiven Werkzeuge des Roboters innerhalb der Simulation.
+Diese Komponente reagiert auf Befehle zum Werkzeugwechsel sowie auf Greifer- und Pumpenbefehle.
 
 | **RobotLEDController**
 | Setzt empfangene RGB-Werte in die visuelle LED-Darstellung des Roboters um.
 
 | **WorldUdpBridge**
-| Empfängt Weltbefehle über UDP auf Port `5006`. Auch hier werden Nachrichten zunächst zwischengespeichert und anschliessend sicher im Unity-Hauptthread verarbeitet.
+| Empfängt Weltbefehle über UDP auf Port `5006`.
+Auch hier werden Nachrichten zunächst zwischengespeichert und anschliessend sicher im Unity-Hauptthread verarbeitet.
 
 | **WorldSpawnManager**
-| Verarbeitet die Weltbefehle `spawn`, `delete` und `clear`. Er erstellt Objekte, entfernt sie wieder oder setzt die Szene zurück.
+| Verarbeitet die Weltbefehle `spawn`, `delete` und `clear`.
+Er erstellt Objekte, entfernt sie wieder oder setzt die Szene zurück.
+Beim Erzeugen von Objekten ergänzt er benötigte Unity-Komponenten wie `Rigidbody` und `GrabbableObject`.
 
 |===
 
@@ -167,11 +245,14 @@ Auf Level 3 werden die wichtigsten internen Strukturen der Python- und Unity-Sch
 
 ==== Whitebox `MyPalletizerController`
 
-Der `MyPalletizerController` ist der zentrale technische Kern der Python-Schicht. Er verbindet die Benutzer-API mit der Simulation und der realen Hardware.
+Der `MyPalletizerController` ist der zentrale technische Kern der Python-Schicht.
+Er verbindet die benutzernahe API mit der Simulation und der realen Hardware.
 
 [plantuml, target="diagram-controller-l3", format="png"]
 ----
 @startuml
+skinparam classAttributeIconSize 0
+
 class MyPalletizerController {
   - mode: str
   - mc: MyPalletizer260
@@ -199,14 +280,15 @@ class MyPalletizerController {
 class MyPalletizer260
 class protocol
 
-MyPalletizerController --> MyPalletizer260
-MyPalletizerController --> protocol
+MyPalletizerController --> MyPalletizer260 : Hardwaresteuerung
+MyPalletizerController --> protocol : Nachrichtenaufbau
+
 @enduml
 ----
 
 ===== Aufgaben des Controllers
 
-Der `MyPalletizerController` erfüllt mehrere Aufgaben gleichzeitig:
+Der `MyPalletizerController` erfüllt mehrere Aufgaben:
 
 * **Modusabhängige Verteilung**
   Im Modus `virtual` werden Befehle nur per UDP an Unity gesendet.
@@ -214,21 +296,31 @@ Der `MyPalletizerController` erfüllt mehrere Aufgaben gleichzeitig:
   Im Modus `both` werden beide Wege parallel verwendet.
 
 * **Validierung und Begrenzung**
-  Gelenkwinkel werden auf feste Grenzwerte begrenzt. Auch die Geschwindigkeit wird in einen erlaubten Bereich gebracht.
+  Gelenkwinkel werden auf feste Grenzwerte begrenzt.
+  Auch die Geschwindigkeit wird in einen erlaubten Bereich gebracht.
+  RGB-Werte für die LED werden ebenfalls geprüft und begrenzt.
 
 * **Verwaltung des Simulationszustands**
-  Für den virtuellen Betrieb werden Gelenkwinkel intern in `_sim_angles` gespeichert, damit `get_angles()` auch ohne reale Hardware einen sinnvollen Zustand liefern kann.
+  Für den virtuellen Betrieb werden Gelenkwinkel intern in `_sim_angles` gespeichert.
+  Dadurch kann `get_angles()` auch ohne reale Hardware einen sinnvollen Zustand liefern.
 
 * **Kapselung der Herstellerbibliothek**
-  `pymycobot` bleibt vollständig hinter dem Controller verborgen. Der Benutzer arbeitet nur mit der `Robot`-Klasse und nicht direkt mit der Hersteller-API.
+  `pymycobot` bleibt vollständig hinter dem Controller verborgen.
+  Der Benutzer arbeitet nur mit der `Robot`-Klasse und nicht direkt mit der Hersteller-API.
+
+* **Kommunikation mit Unity**
+  Roboterbefehle werden in JSON-Nachrichten umgewandelt und über UDP an die Unity-Simulation gesendet.
 
 ==== Whitebox `World`
 
-Die Klasse `World` ist der zweite zentrale Zugangspunkt auf Python-Seite. Sie ist bewusst unabhängig von der Robotersteuerung.
+Die Klasse `World` ist der zweite zentrale Zugangspunkt auf Python-Seite.
+Sie ist bewusst unabhängig von der Robotersteuerung.
 
 [plantuml, target="diagram-world-l3", format="png"]
 ----
 @startuml
+skinparam classAttributeIconSize 0
+
 class World {
   - ip: str
   - udp_port: int
@@ -248,30 +340,73 @@ class protocol
 class PRESETS
 class WorldObject
 
-World --> protocol
-World --> PRESETS
-World --> WorldObject
+World --> protocol : Nachrichtenaufbau
+World --> PRESETS : Preset-Auswahl
+World --> WorldObject : Objektvalidierung
+
 @enduml
 ----
 
 ===== Aufgaben der World-Komponente
 
-`World` kapselt alle Befehle, die sich auf die Simulationswelt beziehen. Dazu gehören:
+`World` kapselt alle Befehle, die sich auf die Simulationswelt beziehen.
+Dazu gehören:
 
 * Erzeugen neuer Objekte
 * Löschen vorhandener Objekte
 * Zurücksetzen der Szene
 * Laden von vordefinierten Presets
+* Validieren von Weltobjekten vor dem Versand an Unity
 
-Die Trennung von `World` und `Robot` sorgt dafür, dass Weltänderungen die eigentliche Robotersteuerung nicht unnötig vermischen.
+Die Trennung von `World` und `Robot` sorgt dafür, dass Weltänderungen die eigentliche
+Robotersteuerung nicht unnötig vermischen.
+
+==== Whitebox `protocol`
+
+Das Modul `protocol` ist kein eigenständiger Laufzeitprozess, sondern ein Hilfsmodul zur
+zentralen Erzeugung von Nachrichten.
+
+[plantuml, target="diagram-protocol-l3", format="png"]
+----
+@startuml
+skinparam componentStyle rectangle
+
+component "protocol" as Protocol
+
+component "Robot Messages" as RobotMessages
+component "World Messages" as WorldMessages
+
+Protocol --> RobotMessages : move_joints /\nsync_move_joints /\nled / pump
+Protocol --> WorldMessages : spawn /\ndelete / clear
+
+@enduml
+----
+
+===== Aufgaben des Protokollmoduls
+
+Das Protokollmodul sorgt dafür, dass JSON-Nachrichten konsistent aufgebaut werden.
+Dadurch müssen Nachrichten nicht an vielen Stellen im Code manuell zusammengesetzt werden.
+
+Es übernimmt insbesondere:
+
+* Aufbau von Roboterbefehlen
+* Aufbau von Weltbefehlen
+* Verwendung einer einheitlichen Protokollversion `v`
+* Verwendung eines einheitlichen Befehlsfeldes `type`
+* Reduktion von Fehlern durch zentral definierte Nachrichtenstruktur
+
+Diese Zentralisierung erleichtert spätere Erweiterungen des Protokolls.
 
 ==== Whitebox `MyPalletizerArticulationAdapter`
 
-Innerhalb der Unity-Simulation übernimmt der `MyPalletizerArticulationAdapter` die Weitergabe von Gelenkbefehlen an die einzelnen Gelenkaktuatoren.
+Innerhalb der Unity-Simulation übernimmt der `MyPalletizerArticulationAdapter` die Weitergabe
+von Gelenkbefehlen an die einzelnen Gelenkaktuatoren.
 
 [plantuml, target="diagram-joints-l3", format="png"]
 ----
 @startuml
+skinparam classAttributeIconSize 0
+
 class MyPalletizerArticulationAdapter {
     + MoveJointsAsync(a1, a2, a3, a4, speed)
     + MoveJointsSync(a1, a2, a3, a4, speed, epsDeg)
@@ -283,34 +418,42 @@ class ArticulationJointActuator {
 }
 
 MyPalletizerArticulationAdapter "1" *-- "4" ArticulationJointActuator
+
 @enduml
 ----
 
 ===== Aufgaben des Adapters
 
-Der Adapter verteilt die empfangenen Zielwinkel auf vier Gelenkaktuatoren. Dabei gibt es zwei Ausführungsarten:
+Der Adapter verteilt die empfangenen Zielwinkel auf vier Gelenkaktuatoren.
+
+Dabei gibt es zwei Ausführungsarten:
 
 * **asynchron** über `MoveJointsAsync(...)`
 * **synchron** über `MoveJointsSync(...)`, wobei gewartet wird, bis alle Gelenke ihr Ziel erreicht haben
 
-Damit bildet der Adapter die Gelenkbewegung des Roboters in Unity auf einer klaren, gekapselten Ebene ab.
+Damit bildet der Adapter die Gelenkbewegung des Roboters in Unity auf einer klaren,
+gekapselten Ebene ab.
 
 ==== Whitebox Werkzeug- und Weltverwaltung in Unity
 
-Neben den Gelenken besitzt die Unity-Seite weitere spezialisierte Komponenten für Werkzeuge und Weltobjekte.
+Neben den Gelenken besitzt die Unity-Seite weitere spezialisierte Komponenten für Werkzeuge
+und Weltobjekte.
 
 [plantuml, target="diagram-tools-world-l3", format="png"]
 ----
 @startuml
+skinparam componentStyle rectangle
+
 component "RobotToolManager" as RTM
 component "SimpleGripperController" as Gripper
 component "SuctionPumpController" as Pump
 component "WorldSpawnManager" as WSM
 component "GrabbableObject" as GO
 
-RTM --> Gripper
-RTM --> Pump
+RTM --> Gripper : Greiferbefehle
+RTM --> Pump : Pumpenbefehle
 WSM --> GO : erzeugt greifbare Objekte
+
 @enduml
 ----
 
@@ -318,25 +461,52 @@ WSM --> GO : erzeugt greifbare Objekte
 
 * **RobotToolManager**
   Koordiniert Werkzeugwechsel und Werkzeugbefehle innerhalb der Simulation.
+  Er entscheidet, ob der Greifer oder die Pumpe aktiv ist.
 
 * **SimpleGripperController**
-  Greift Objekte innerhalb eines Radius, hält sie fest und gibt sie wieder frei.
+  Greift Objekte innerhalb eines definierten Bereichs, hält sie fest und gibt sie wieder frei.
+  Damit wird das Verhalten eines einfachen Greifers simuliert.
 
 * **SuctionPumpController**
-  Aktiviert bzw. deaktiviert die Pumpe und bindet das nächstgelegene greifbare Objekt an den Roboter.
+  Aktiviert oder deaktiviert die Pumpe und bindet das nächstgelegene greifbare Objekt an den Roboter.
+  Dadurch wird das Verhalten einer einfachen Vakuumpumpe in der Simulation nachgebildet.
 
 * **WorldSpawnManager**
-  Erstellt Objekte anhand der empfangenen Weltnachrichten und ergänzt dabei benötigte Komponenten wie `Rigidbody` und `GrabbableObject`.
+  Erstellt Objekte anhand der empfangenen Weltnachrichten.
+  Zusätzlich ergänzt er benötigte Komponenten wie `Rigidbody` und `GrabbableObject`.
+
+* **GrabbableObject**
+  Markiert Objekte, die durch Greifer oder Pumpe aufgenommen werden können.
+  Dadurch müssen Werkzeugkomponenten nicht jedes beliebige Unity-Objekt berücksichtigen, sondern nur Objekte mit dieser Markierung.
 
 === Wichtige Entwurfsentscheidungen in der Bausteinsicht
 
-Die Bausteinsicht zeigt drei wichtige Strukturentscheidungen des Systems:
+Die Bausteinsicht zeigt mehrere wichtige Strukturentscheidungen des Systems:
 
 1. **Trennung von Robotersteuerung und Weltverwaltung**
-   Auf Python-Seite (`Robot` und `World`) sowie auf Unity-Seite (`UnityUdpBridge` und `WorldUdpBridge`) sind diese Bereiche getrennt.
+
+   Auf Python-Seite sind diese Verantwortlichkeiten durch `Robot` und `World` getrennt.
+   Auf Unity-Seite erfolgt die Trennung durch `UnityUdpBridge` und `WorldUdpBridge`.
+   Diese Aufteilung verhindert, dass Bewegungsbefehle und Weltbefehle unnötig vermischt werden.
 
 2. **Kapselung externer Abhängigkeiten**
-   Die Herstellerbibliothek `pymycobot` wird nicht direkt an den Benutzer weitergegeben, sondern vollständig über `MyPalletizerController` und `Robot` gekapselt.
+
+   Die Herstellerbibliothek `pymycobot` wird nicht direkt an den Benutzer weitergegeben.
+   Sie ist vollständig über den `MyPalletizerController` und die Klasse `Robot` gekapselt.
+   Dadurch bleibt die öffentliche API stabiler und unabhängiger von herstellerspezifischen Details.
 
 3. **Symmetrische Struktur zwischen Python und Unity**
-   Auf beiden Seiten gibt es eine getrennte Verarbeitung von Roboter- und Weltbefehlen. Das vereinfacht die Architektur und macht die Kommunikation klarer.
+
+   Auf beiden Seiten gibt es eine getrennte Verarbeitung von Roboter- und Weltbefehlen.
+   Das vereinfacht die Architektur und macht die Kommunikation klarer.
+
+4. **Zentrale Protokollerzeugung**
+
+   JSON-Nachrichten werden nicht verteilt im Code aufgebaut, sondern zentral über das Modul `protocol`.
+   Dadurch bleibt das Nachrichtenformat konsistent und leichter erweiterbar.
+
+5. **Unity-Hauptthread als Ausführungspunkt**
+
+   Eingehende UDP-Nachrichten werden in Unity zunächst zwischengespeichert.
+   Die eigentliche Verarbeitung erfolgt anschliessend im Unity-Hauptthread.
+   Dadurch werden Threading-Probleme vermieden, da Unity-Objekte nicht direkt aus Netzwerk-Threads verändert werden sollen.

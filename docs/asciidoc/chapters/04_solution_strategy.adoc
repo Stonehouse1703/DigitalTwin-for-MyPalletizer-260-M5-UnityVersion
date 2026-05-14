@@ -3,36 +3,134 @@ ifndef::imagesdir[:imagesdir: ../images]
 [[section-solution-strategy]]
 == Solution Strategy
 
-Die Lösungsstrategie basiert auf einer klaren Trennung zwischen der Steuerlogik (Python) und der visuellen bzw. physikalischen Darstellung (Unity).
+Die Lösungsstrategie beschreibt die grundlegenden technischen Ansätze, mit denen die wichtigsten
+Qualitätsziele des Systems erreicht werden. Im Mittelpunkt stehen eine einfache Benutzbarkeit,
+eine klare Trennung der Verantwortlichkeiten sowie die Möglichkeit, denselben Python-Code sowohl
+für die Simulation als auch für den realen Roboter zu verwenden.
+
+Die Architektur basiert auf einer klaren Trennung zwischen der Steuerlogik in Python und der
+visuellen beziehungsweise physikalischen Darstellung in Unity. Python bildet dabei die zentrale
+Steuerungs- und Vermittlungsschicht. Unity ist für die Simulation und Visualisierung zuständig,
+während der reale Roboter über die Herstellerbibliothek `pymycobot` und eine serielle Verbindung
+angesprochen wird.
+
+Ziel der Lösungsstrategie ist es, die technische Komplexität vor dem Benutzer zu verbergen. Der
+Benutzer arbeitet mit einer einheitlichen Python-API, ohne direkt mit UDP, serieller Kommunikation,
+Unity-internen Komponenten oder `pymycobot` interagieren zu müssen.
+
+---
+
+=== Überblick über die Lösungsstrategie
+
+Die zentrale Idee des Systems besteht darin, alle Benutzerbefehle zuerst über eine gemeinsame
+Python-Schnittstelle entgegenzunehmen. Diese Schnittstelle entscheidet anschliessend, abhängig vom
+gewählten Modus, an welche Zielsysteme die Befehle weitergeleitet werden.
+
+Es werden drei Betriebsmodi unterstützt:
+
+* **`virtual`**
+  Befehle werden nur an die Unity-Simulation gesendet. Dieser Modus eignet sich besonders für Tests,
+  Demonstrationen und die Entwicklung ohne reale Hardware.
+
+* **`real`**
+  Befehle werden nur an den realen MyPalletizer 260 M5 gesendet. Die Kommunikation erfolgt über
+  `pymycobot` und eine serielle USB-Verbindung.
+
+* **`both`**
+  Befehle werden sowohl an die Unity-Simulation als auch an den realen Roboter gesendet. Dadurch
+  kann das Verhalten der Simulation mit der realen Hardware verglichen werden.
+
+Diese Moduswahl wird intern gekapselt. Dadurch bleibt der Benutzercode weitgehend identisch,
+unabhängig davon, ob nur simuliert, nur real ausgeführt oder beides parallel verwendet wird.
 
 ---
 
 === Architekturelle Leitprinzipien
 
 1. **Einheitliche Abstraktion**
+
    Der Benutzer soll nicht unterscheiden müssen, ob er die Simulation oder die reale Hardware steuert.
-   Alle modusspezifischen Unterschiede (`virtual`, `real`, `both`) werden intern im System gekapselt.
+   Alle modusspezifischen Unterschiede (`virtual`, `real`, `both`) werden intern im System behandelt.
+   Dadurch kann derselbe Python-Code in verschiedenen Ausführungskontexten verwendet werden.
 
-2. **Entkopplung durch Netzwerkschnittstellen**
-   Durch die Verwendung von UDP laufen Steuerlogik (Python) und Simulation (Unity) unabhängig voneinander.
-   Dadurch wird verhindert, dass Performance-Schwankungen der 3D-Engine die Steuerlogik beeinflussen.
+2. **Kapselung externer Abhängigkeiten**
 
-3. **Zustandsbasierte Kommunikation**
-   Jedes UDP-Paket enthält den vollständigen Soll-Zustand (z. B. alle Gelenkwinkel).
-   Dadurch kann ein verlorenes Paket durch das nächste automatisch korrigiert werden.
+   Die Herstellerbibliothek `pymycobot` wird nicht direkt vom Benutzer verwendet, sondern innerhalb
+   des Systems gekapselt. Dadurch bleibt die öffentliche API stabiler und weniger abhängig von
+   herstellerspezifischen Details.
+   Auch die UDP-Kommunikation mit Unity wird vor dem Benutzer verborgen. Der Benutzer ruft Methoden
+   wie `send_angles()`, `set_color()` oder `spawn()` auf, während das System intern die passenden
+   Nachrichten erzeugt und versendet.
+
+3. **Entkopplung durch Netzwerkschnittstellen**
+
+   Durch die Verwendung von UDP laufen Steuerlogik in Python und Simulation in Unity unabhängig
+   voneinander. Dadurch wird verhindert, dass Performance-Schwankungen der 3D-Engine die Python-
+   Steuerlogik direkt blockieren.
+   Unity kann somit als eigenständiges Simulationssystem betrieben werden, während Python die Rolle
+   der Steuerungsinstanz übernimmt.
+
+4. **Zustandsbasierte Kommunikation**
+
+   Jedes UDP-Paket enthält den vollständigen Soll-Zustand, zum Beispiel alle Gelenkwinkel des
+   Roboters. Dadurch muss die Simulation nicht zwingend jedes einzelne Paket erhalten, um den
+   aktuellen Zielzustand rekonstruieren zu können.
+   Geht ein einzelnes UDP-Paket verloren, kann ein späteres Paket den aktuellen Soll-Zustand erneut
+   übertragen und die Simulation wieder auf den gewünschten Zustand bringen.
+
+5. **Trennung von Roboter- und Weltbefehlen**
+
+   Roboterbefehle und Weltbefehle erfüllen unterschiedliche Aufgaben und haben unterschiedliche
+   Anforderungen. Deshalb werden sie über getrennte UDP-Kanäle übertragen.
+   Roboterbefehle sind häufig und zeitkritisch, während Weltbefehle seltener auftreten und eher
+   diskrete Aktionen darstellen. Die Trennung verbessert die Wartbarkeit und reduziert die Gefahr,
+   dass grosse oder seltene Weltnachrichten die kontinuierliche Robotersteuerung beeinflussen.
+
+6. **Einfache Erweiterbarkeit**
+
+   Neue Roboterbefehle, Werkzeuge oder Weltbefehle sollen möglichst einfach ergänzt werden können.
+   Deshalb werden Nachrichten zentral über das Protokollmodul erzeugt und nicht verteilt im Code
+   manuell zusammengesetzt.
+   Dadurch bleibt das Nachrichtenformat konsistent und Änderungen am Protokoll können an einer
+   zentralen Stelle vorgenommen werden.
 
 ---
 
 === Entscheidungen zur Kommunikation
 
 * **Warum UDP statt TCP?**
-  In diesem System ist eine geringe Latenz wichtiger als eine garantierte Zustellung.
-  Ein verlorenes Paket ist unkritisch, da kurze Zeit später ein neues Paket mit aktuellen Daten gesendet wird.
-  TCP würde durch Wiederholungen (Retransmissions) zu Verzögerungen führen.
+
+  In diesem System ist eine geringe Latenz wichtiger als eine garantierte Zustellung. Besonders bei
+  Bewegungsdaten ist es wichtiger, schnell den aktuellen Zielzustand zu übertragen, als ältere Pakete
+  nachträglich garantiert auszuliefern.
+  Ein verlorenes Paket ist in der Regel unkritisch, da kurze Zeit später ein neues Paket mit aktuellen
+  Daten gesendet werden kann. TCP würde durch Wiederholungen und Reihenfolgesicherung zusätzliche
+  Verzögerungen verursachen. Gerade für kontinuierliche Bewegungsbefehle kann das zu einer weniger
+  flüssigen Simulation führen.
+  UDP ist deshalb für diesen Anwendungsfall geeignet, solange die Nachrichten zustandsbasiert aufgebaut
+  sind und nicht jede einzelne Nachricht zwingend verarbeitet werden muss.
 
 * **Warum JSON?**
-  JSON ist einfach zu implementieren und gut lesbar, was das Debugging erleichtert.
-  Da die Datenmenge pro Nachricht klein ist, überwiegen diese Vorteile gegenüber binären Formaten.
+
+  JSON ist einfach zu implementieren, gut lesbar und mit Python sowie Unity problemlos verarbeitbar.
+  Das erleichtert insbesondere das Debugging, da Nachrichten direkt gelesen und verstanden werden können.
+  Da die Datenmenge pro Nachricht klein ist, ist der zusätzliche Overhead gegenüber binären Formaten
+  akzeptabel. Ein binäres Protokoll wäre zwar effizienter, aber deutlich schwieriger zu debuggen und
+  weniger transparent.
+
+* **Warum Serial für die Hardware?**
+
+  Der reale MyPalletizer 260 M5 wird über eine serielle Verbindung angesprochen, da dies dem vorgesehenen
+  Kommunikationsweg der Herstellerbibliothek `pymycobot` entspricht. Die Python-Seite nutzt diese
+  Verbindung jedoch nicht direkt im Benutzercode, sondern kapselt sie im Hardware-Controller.
+
+* **Warum zwei UDP-Ports?**
+
+  Die Simulation unterscheidet zwischen Roboterbefehlen und Weltbefehlen. Port `5005` wird für
+  Roboterbefehle verwendet, Port `5006` für Weltbefehle. Dadurch können beide Arten von Nachrichten
+  getrennt verarbeitet werden.
+  Diese Aufteilung vereinfacht die Struktur auf Unity-Seite und macht die Kommunikation robuster gegen
+  gegenseitige Beeinflussung.
 
 ---
 
@@ -69,36 +167,137 @@ Transport --> Robot : Serial
 | Schicht | Verantwortung
 
 | **User Logic**
-| Python-Skript des Benutzers. Enthält z. B. Bewegungslogik oder Szenarien.
+| Python-Skript des Benutzers. Enthält Bewegungslogik, Testszenarien oder Demonstrationen.
+Der Benutzer arbeitet auf dieser Ebene mit den Klassen `Robot` und `World`.
 
 | **API / Controller Layer**
-| Zentrale Schnittstelle des Systems. Kapselt die Nutzung von `pymycobot`, validiert Eingaben und entscheidet, ob Befehle an Simulation, Hardware oder beide gesendet werden.
+| Zentrale Schnittstelle des Systems. Kapselt die Nutzung von `pymycobot`, validiert Eingaben
+und entscheidet anhand des Modus, ob Befehle an Simulation, Hardware oder beide gesendet werden.
+
+| **Protocol Layer**
+| Erzeugt strukturierte Nachrichten für die Kommunikation mit Unity. Dadurch wird sichergestellt,
+dass alle JSON-Nachrichten einheitlich aufgebaut sind und Änderungen am Protokoll zentral vorgenommen
+werden können.
 
 | **Transport Layer**
-| Verantwortlich für die Übertragung der Daten (JSON, UDP, Serial).
+| Verantwortlich für die tatsächliche Übertragung der Daten. Für die Simulation werden JSON-Nachrichten
+über UDP übertragen. Für die reale Hardware wird die serielle Verbindung über `pymycobot` verwendet.
 
 | **Execution Layer**
-| Führt die Befehle aus:
-Simulation in Unity oder reale Ausführung auf dem Roboter.
+| Führt die Befehle aus. Dazu gehören die Unity-Simulation sowie der reale MyPalletizer 260 M5.
 
 |===
 
 ---
 
+=== Strategie zur Moduswahl
+
+Die Moduswahl ist ein zentraler Bestandteil der Lösungsstrategie. Sie bestimmt, wohin ein Befehl
+weitergeleitet wird.
+
+Im Modus `virtual` werden Befehle ausschliesslich an Unity gesendet. Dadurch kann der Benutzer das
+System ohne reale Hardware testen. Dieser Modus ist besonders nützlich für Entwicklung, Unterricht,
+Demonstrationen und erste Tests von Bewegungsabläufen.
+
+Im Modus `real` werden Befehle ausschliesslich an den realen Roboter gesendet. Dieser Modus wird
+verwendet, wenn Bewegungen tatsächlich auf der Hardware ausgeführt werden sollen.
+
+Im Modus `both` werden Befehle parallel an Unity und an den realen Roboter gesendet. Dieser Modus
+ermöglicht einen direkten Vergleich zwischen Simulation und realem Verhalten. Dabei ist jedoch zu
+beachten, dass Simulation und Hardware nicht zwingend exakt synchron reagieren, da beide Systeme
+unterschiedliche Laufzeiten und physikalische Eigenschaften besitzen.
+
+Die Moduswahl wird nicht dem Benutzerprogramm überlassen, sondern zentral in der API behandelt.
+Dadurch wird verhindert, dass der Benutzercode mit vielen Fallunterscheidungen belastet wird.
+
+---
+
 === Strategie zur Kommunikationstrennung
 
-Die Kommunikation zwischen Python und Unity erfolgt über zwei getrennte UDP-Ports. Dabei wird
-Port 5005 für Roboterbefehle wie Gelenkbewegungen, Werkzeugbefehle und LED-Steuerung verwendet,
-während Port 5006 für Befehle zur Verwaltung der Simulationswelt eingesetzt wird, beispielsweise
-für `spawn`, `delete` oder `clear`. Diese Ports sind standardmässig festgelegt, können aber bei Bedarf angepasst werden.
+Die Kommunikation zwischen Python und Unity erfolgt über zwei getrennte UDP-Ports. Port `5005`
+wird für Roboterbefehle wie Gelenkbewegungen, Werkzeugbefehle und LED-Steuerung verwendet.
+Port `5006` wird für Befehle zur Verwaltung der Simulationswelt eingesetzt, beispielsweise für
+`spawn`, `delete` oder `clear`.
+
+Diese Ports sind standardmässig festgelegt, können aber bei Bedarf angepasst werden.
 
 Diese Trennung wurde bewusst gewählt, da beide Kommunikationsarten unterschiedliche Anforderungen
 haben. Roboterbefehle treten häufig auf und sind zeitkritisch, da Bewegungen möglichst flüssig und
 ohne Verzögerung in der Simulation sichtbar werden sollen. Befehle zur Weltverwaltung sind dagegen
-seltener und eher diskrete Einzelaktionen. Durch die Aufteilung auf zwei getrennte Kanäle wird
-verhindert, dass grössere oder unregelmässige Weltnachrichten die kontinuierliche Übertragung der
-Roboterbefehle beeinflussen.
+seltener und eher diskrete Einzelaktionen.
+
+Durch die Aufteilung auf zwei getrennte Kanäle wird verhindert, dass grössere oder unregelmässige
+Weltnachrichten die kontinuierliche Übertragung der Roboterbefehle beeinflussen.
 
 Zusätzlich verbessert diese Trennung die Struktur des Systems, da Robotersteuerung und
 Weltverwaltung auch konzeptionell als zwei unterschiedliche Aufgabenbereiche behandelt werden.
 Dadurch bleibt die Architektur klarer, leichter erweiterbar und einfacher zu warten.
+
+---
+
+=== Strategie zur Fehlerbehandlung
+
+Das System verwendet derzeit überwiegend eine einfache Fehlerbehandlung. Eingaben werden auf
+Python-Seite geprüft, bevor sie an Simulation oder Hardware weitergeleitet werden. Dadurch können
+offensichtliche Fehler, zum Beispiel ungültige Gelenkwinkel oder unbekannte Werkzeugnamen, frühzeitig
+abgefangen werden.
+
+Bei der Kommunikation mit Unity wird bewusst auf ein einfaches UDP-basiertes Modell gesetzt.
+Da UDP keinen eingebauten Rückkanal und keine garantierte Zustellung besitzt, wird die Robustheit
+nicht über Paketbestätigung erreicht, sondern über zustandsbasierte Nachrichten.
+
+Für die Hardwaresteuerung ist die Fehlerbehandlung stärker von `pymycobot` und der seriellen
+Verbindung abhängig. Fehler wie nicht erreichbare Ports, Verbindungsprobleme oder nicht reagierende
+Hardware müssen auf dieser Ebene erkannt und behandelt werden.
+
+Eine mögliche spätere Erweiterung wäre ein einheitliches Status- und Fehlermodell, bei dem sowohl
+Unity als auch der reale Roboter Rückmeldungen an Python senden können.
+
+---
+
+=== Strategie zur Erweiterbarkeit
+
+Die Architektur ist so aufgebaut, dass neue Funktionen schrittweise ergänzt werden können.
+
+Neue Roboterbefehle können in der Python-API ergänzt und anschliessend im Protokollmodul als neue
+JSON-Nachrichten definiert werden. Unity muss diese Nachrichtentypen danach entsprechend interpretieren.
+
+Neue Weltbefehle können ebenfalls über das Protokollmodul ergänzt werden. Beispiele wären zusätzliche
+Objekttypen, komplexere Szenenoperationen oder erweiterte Material- und Farbeinstellungen.
+
+Auch weitere Hardwarefunktionen können ergänzt werden, solange sie entweder über `pymycobot` verfügbar
+sind oder über eine eigene Hardware-Abstraktionsschicht angebunden werden.
+
+Wichtig ist dabei, dass die öffentliche API möglichst stabil bleibt. Änderungen an internen
+Kommunikationswegen sollen den Benutzercode möglichst wenig beeinflussen.
+
+---
+
+=== Bewusste technische Einschränkungen
+
+Einige technische Vereinfachungen wurden bewusst akzeptiert, um das System überschaubar und für den
+Projektumfang realistisch zu halten.
+
+* **Kein vollständiges Closed-Loop-System**
+
+  Die Python-Seite sendet Soll-Zustände, prüft aber aktuell nicht kontinuierlich, ob Simulation oder
+  Hardware diese Zustände exakt erreicht haben. Dadurch bleibt die Architektur einfacher, allerdings
+  fehlen präzise Rückmeldungen über den tatsächlichen Zustand.
+
+* **Keine vollständige physikalische Genauigkeit**
+
+  Die Unity-Simulation dient vor allem der Visualisierung, Demonstration und grundlegenden Prüfung von
+  Bewegungsabläufen. Sie ersetzt keine hochpräzise physikalische Simulation des realen Roboters.
+
+* **Keine vollständige Kamerasimulation**
+
+  Die am realen Roboter vorhandene Kamera wird in der aktuellen Simulation nicht vollständig nachgebildet.
+  Kamerabasierte Funktionen oder Bildverarbeitung müssen daher weiterhin mit der echten Hardware getestet
+  werden.
+
+* **Abhängigkeit von Herstellerkomponenten**
+
+  Die reale Hardwareansteuerung hängt weiterhin von `pymycobot` und den Fähigkeiten des Herstellersystems
+  ab. Diese Abhängigkeit wird gekapselt, aber nicht vollständig eliminiert.
+
+---

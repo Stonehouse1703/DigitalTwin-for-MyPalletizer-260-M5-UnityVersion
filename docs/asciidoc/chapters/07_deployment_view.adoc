@@ -4,61 +4,201 @@ ifndef::imagesdir[:imagesdir: ../images]
 == Deployment View
 
 Die Verteilungssicht beschreibt die physische Infrastruktur und die Softwareumgebung, in der das System betrieben wird.
+Sie zeigt, auf welchen Laufzeitumgebungen die einzelnen Komponenten ausgeführt werden und über welche Verbindungen sie miteinander kommunizieren.
 
-Das System ist für den Betrieb auf einem normalen Rechner ausgelegt. Die Python-Anwendung und die Unity-Simulation laufen dabei in der Regel auf demselben Host. Optional kann zusätzlich der reale MyPalletizer 260 M5 über USB angeschlossen werden.
+Das System ist für den Betrieb auf einem normalen Rechner ausgelegt.
+Die Python-Anwendung und die Unity-Simulation laufen in der Regel auf demselben Host-PC.
+Optional kann zusätzlich der reale MyPalletizer 260 M5 über USB angeschlossen werden.
 
 [plantuml, target="diagram-deployment-view", format="png"]
 ----
 @startuml
-node "Host PC\n(Windows / Linux / macOS)" as PC {
-    component "Python Application" as PyApp
-    component "Unity Application" as UnityApp
+skinparam componentStyle rectangle
+
+node "Host-PC\n(Windows / Linux / macOS)" as PC {
+    component "Python Application\n(Python API / User Script)" as PyApp
+    component "Unity Application\n(Simulation)" as UnityApp
 }
 
-node "MyPalletizer 260 M5" as Robot
+node "MyPalletizer 260 M5\n(Optional)" as Robot
 
-PyApp <--> UnityApp : UDP (localhost)\nPorts 5005 / 5006
-PyApp --> Robot : USB (Serial)
+PyApp --> UnityApp : UDP / JSON\nlocalhost:5005\nRoboterbefehle
+PyApp --> UnityApp : UDP / JSON\nlocalhost:5006\nWeltbefehle
+PyApp --> Robot : USB / Serial\n115200 Baud
+
 @enduml
 ----
 
 === Host-PC
 
+Der Host-PC ist die zentrale Laufzeitumgebung des Systems.
+Auf ihm werden die Python-Steuerung und die Unity-Simulation ausgeführt.
+
 Der Host-PC benötigt folgende Softwarekomponenten:
 
-* **Python Runtime (ab Version 3.12)**
-  Erforderlich für die Ausführung der Steuerlogik und der Python-API.
+* **Python Runtime ab Version 3.12**
+  Erforderlich für die Ausführung der Steuerlogik, der Python-API und der Benutzerskripte.
+
+* **Python-Abhängigkeiten**
+  Benötigt werden die projektinternen Module sowie externe Abhängigkeiten wie `pymycobot`, sofern die reale Hardware verwendet wird.
 
 * **Unity-Anwendung**
   Enthält die Simulation, die Visualisierung und die Empfängerlogik für die UDP-Kommunikation.
 
 * **USB-Seriell-Verbindung**
-  Wird benötigt, wenn der reale Roboter verwendet werden soll.
+  Wird benötigt, wenn der reale Roboter im Modus `real` oder `both` verwendet werden soll.
+
+* **Freie UDP-Ports**
+  Die Ports `5005` und `5006` müssen verfügbar sein, damit Python mit der Unity-Simulation kommunizieren kann.
+
+=== Verteilung der Komponenten
+
+[cols="1,1,2", options="header"]
+|===
+| Komponente | Laufzeitumgebung | Beschreibung
+
+| **Python Application**
+| Host-PC
+| Führt die Benutzerskripte und die Python-API aus.
+Sie entscheidet anhand des Betriebsmodus, ob Befehle an Unity, an die reale Hardware oder an beide Zielsysteme weitergegeben werden.
+
+| **Unity Application**
+| Host-PC
+| Führt die Simulation aus.
+Sie empfängt UDP-Nachrichten, visualisiert den Roboter und verwaltet die Simulationswelt.
+
+| **MyPalletizer 260 M5**
+| Externes Gerät
+| Optionaler realer Roboter.
+Er wird über USB/Serial angebunden und nur in den Modi `real` und `both` benötigt.
+
+|===
+
+=== Kommunikation
+
+Die Kommunikation zwischen den Komponenten erfolgt über einfache, lokal verfügbare Schnittstellen.
+
+[cols="1,1,2", options="header"]
+|===
+| Verbindung | Technologie | Zweck
+
+| **Python zu Unity: Roboterkanal**
+| UDP / JSON, Port `5005`
+| Überträgt Roboterbefehle wie Gelenkbewegungen, Werkzeugbefehle, Greifer-, Pumpen- und LED-Steuerung.
+
+| **Python zu Unity: Weltkanal**
+| UDP / JSON, Port `5006`
+| Überträgt Weltbefehle wie `spawn`, `delete`, `clear` und das Laden von Szenarien.
+
+| **Python zu realem Roboter**
+| USB / Serial, `115200` Baud
+| Überträgt Hardwarebefehle über `pymycobot` an den MyPalletizer 260 M5.
+
+|===
+
+Die Kommunikation zwischen Python und Unity erfolgt standardmässig über `localhost`.
+Dadurch müssen keine zusätzlichen Netzwerkdienste betrieben werden.
+Falls Python und Unity auf unterschiedlichen Rechnern ausgeführt werden sollen, müssen IP-Adresse, Firewall-Regeln und erreichbare UDP-Ports entsprechend angepasst werden.
 
 === Bereitstellung
 
-Die Software wird über eine CI/CD-Pipeline automatisiert gebaut. Dabei werden für die unterstützten Betriebssysteme jeweils Artefakte erstellt.
+Die Software kann in zwei Varianten bereitgestellt werden:
 
-Dadurch kann der Benutzer die passende Version für sein Betriebssystem direkt herunterladen und starten, ohne die Anwendung selbst bauen zu müssen. Dies vereinfacht die Nutzung erheblich und ermöglicht einen schnellen Einstieg, insbesondere für Anwender die keine Unity-Vorkenntnisse haben.
+* **Fertige Anwendung**
+  Die Unity-Simulation wird als ausführbares Artefakt für das jeweilige Betriebssystem bereitgestellt.
+  Der Benutzer kann die passende Version herunterladen und starten, ohne die Simulation selbst in Unity bauen zu müssen.
 
-Falls der Benutzer die Simulation anpassen oder erweitern möchte, bleibt das Unity-Projekt zugänglich. Es kann mit einer kostenlosen Unity-Version geöffnet und bearbeitet werden um die Simulation nach eigenen Bedürfnissen zu verändern.
+* **Entwicklungsumgebung**
+  Für Anpassungen oder Erweiterungen kann das Unity-Projekt direkt geöffnet werden.
+  Dadurch können Modelle, Szenen, Skripte oder Simulationsverhalten verändert werden.
+
+Falls eine CI/CD-Pipeline verwendet wird, kann der Build-Prozess automatisiert werden.
+Dabei werden für die unterstützten Betriebssysteme jeweils passende Artefakte erstellt.
+Dies vereinfacht die Nutzung erheblich, insbesondere für Anwender ohne Unity-Vorkenntnisse.
 
 === MyPalletizer 260 M5
 
-Der reale Roboter ist ein optionaler Bestandteil der Laufzeitumgebung. Er wird dann benötigt, wenn das System im Modus `real` oder `both` verwendet wird.
+Der reale Roboter ist ein optionaler Bestandteil der Laufzeitumgebung.
+Er wird benötigt, wenn das System im Modus `real` oder `both` betrieben wird.
 
 Für den Betrieb sind insbesondere folgende Punkte relevant:
 
-* Verbindung über USB / Serial
+* Verbindung über USB/Serial
+* korrekter serieller Port auf dem Host-PC
+* Baudrate `115200`
 * passende Firmware auf dem Roboter
-* externe Stromversorgung für den zuverlässigen Betrieb
+* installierte Python-Bibliothek `pymycobot`
+* externe Stromversorgung für einen zuverlässigen Betrieb
+
+Ohne angeschlossenen Roboter kann das System weiterhin im Modus `virtual` verwendet werden.
 
 === Betriebsarten
 
 Das System kann in drei Varianten betrieben werden:
 
-* **virtual** – nur Simulation
-* **real** – nur realer Roboter
-* **both** – Simulation und realer Roboter gleichzeitig
+[cols="1,2,2", options="header"]
+|===
+| Modus | Benötigte Komponenten | Beschreibung
 
-Diese Flexibilität ermöglicht es, das System an die jeweiligen Bedürfnisse und Ressourcen anzupassen. So kann beispielsweise auch ohne Zugriff auf die Hardware die Entwicklung und das Testen von Bewegungsabläufen in der Simulation erfolgen.
+| **`virtual`**
+| Python Application, Unity Application
+| Befehle werden nur an die Unity-Simulation gesendet.
+Dieser Modus eignet sich für Entwicklung, Tests und Demonstrationen ohne reale Hardware.
+
+| **`real`**
+| Python Application, MyPalletizer 260 M5
+| Befehle werden nur an den realen Roboter gesendet.
+Unity muss für diesen Modus nicht zwingend laufen.
+
+| **`both`**
+| Python Application, Unity Application, MyPalletizer 260 M5
+| Befehle werden sowohl an die Simulation als auch an den realen Roboter gesendet.
+Dieser Modus eignet sich für Demonstrationen und den Vergleich zwischen virtuellem und realem Verhalten.
+
+|===
+
+=== Typische Deployment-Szenarien
+
+==== Nur Simulation
+
+In diesem Szenario laufen Python und Unity auf demselben Host-PC.
+Der reale Roboter ist nicht angeschlossen.
+
+Diese Variante ist besonders geeignet für:
+
+* Entwicklung von Bewegungsabläufen
+* Übungen ohne Hardwarezugriff
+* Tests von Weltobjekten und Presets
+* Demonstrationen der Simulation
+
+==== Simulation und reale Hardware
+
+In diesem Szenario laufen Python und Unity auf dem Host-PC, zusätzlich ist der MyPalletizer über USB angeschlossen.
+
+Diese Variante ist geeignet für:
+
+* Vergleich zwischen Simulation und Hardware
+* Demonstrationen des Digital Twins
+* Validierung von Bewegungsabläufen auf realer Hardware
+
+==== Nur reale Hardware
+
+In diesem Szenario läuft nur die Python-Anwendung auf dem Host-PC.
+Unity wird nicht benötigt.
+
+Diese Variante ist geeignet für:
+
+* direkte Hardwaretests
+* Ausführung bereits validierter Bewegungsabläufe
+* Nutzung der Python-API als vereinfachte Hardware-Schnittstelle
+
+=== Deployment-Randbedingungen
+
+Für einen stabilen Betrieb sind folgende Randbedingungen zu beachten:
+
+* Die UDP-Ports `5005` und `5006` dürfen nicht durch andere Anwendungen belegt sein.
+* Firewall-Regeln dürfen die lokale UDP-Kommunikation nicht blockieren.
+* Der serielle Port des Roboters muss korrekt angegeben werden.
+* Der reale Roboter muss eingeschaltet und korrekt verbunden sein.
+* Unity muss gestartet sein, bevor Befehle im Modus `virtual` oder `both` sichtbar verarbeitet werden können.
+* Bei Betrieb auf unterschiedlichen Rechnern müssen IP-Adressen und Portfreigaben angepasst werden.

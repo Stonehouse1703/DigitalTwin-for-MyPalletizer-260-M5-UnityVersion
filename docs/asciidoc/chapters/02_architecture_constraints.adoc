@@ -3,7 +3,8 @@ ifndef::imagesdir[:imagesdir: ../images]
 [[section-architecture-constraints]]
 == Architecture Constraints
 
-Die Architektur des Digital Twins unterliegt verschiedenen technischen, organisatorischen und konventionellen Rahmenbedingungen, welche den Lösungsraum einschränken und die Umsetzung beeinflussen.
+Die Architektur des Digital Twins unterliegt verschiedenen technischen, organisatorischen und konventionellen Rahmenbedingungen.
+Diese Randbedingungen schränken den Lösungsraum ein und beeinflussen die konkrete Umsetzung des Systems.
 
 === Technische Rahmenbedingungen
 
@@ -12,26 +13,48 @@ Die Architektur des Digital Twins unterliegt verschiedenen technischen, organisa
 | Randbedingung | Erläuterung
 
 | **Programmiersprache**
-| Die Steuerungsschicht ist in **Python (ab Version 3.12)** implementiert.
-Dies wurde gewählt, da Python von den meisten Nutzern bereits für die Entwicklung von Bewegungsabläufen und Szenarien verwendet wird und somit gut verständlich ist.
+| Die Steuerungsschicht ist in **Python ab Version 3.12** implementiert.
+Python wurde gewählt, da die Sprache für viele Nutzer gut verständlich ist und sich für die Entwicklung von Bewegungsabläufen, Testszenarien und Demonstrationen eignet.
 
 | **Simulations-Engine**
-| Für die Visualisierung wird **Unity** verwendet.
-Dies erfordert eine Implementierung der Kommunikationslogik in **C#** sowie die Nutzung von Unity-spezifischen Komponenten.
+| Für die Visualisierung und Simulation wird **Unity** verwendet.
+Dadurch muss die Kommunikationslogik auf Unity-Seite in **C#** umgesetzt werden.
+Zusätzlich sind Unity-spezifische Komponenten wie GameObjects, Prefabs, Skripte und Articulation Bodies zu berücksichtigen.
 
-| **Kommunikation (Hardware)**
-| Die Ansteuerung des realen Roboters erfolgt über eine **serielle Schnittstelle (USB)** mit einer Baudrate von 115200.
+| **Kommunikation mit der Hardware**
+| Die Ansteuerung des realen MyPalletizer 260 M5 erfolgt über eine **serielle USB-Schnittstelle** mit einer Baudrate von `115200`.
+Die konkrete Hardwarekommunikation wird über die Herstellerbibliothek `pymycobot` gekapselt.
 
-| **Kommunikation (Simulation)**
-| Die Kommunikation zwischen Python und Unity erfolgt über UDP mit JSON-basierten Nachrichten, welche im Kapitel <<_externe_schnittstellen, Externe Schnittstellen>> näher beschrieben werden.
+| **Kommunikation mit der Simulation**
+| Die Kommunikation zwischen Python und Unity erfolgt über **UDP** mit **JSON-basierten Nachrichten**.
+Die Simulation verwendet getrennte Ports für Roboterbefehle und Weltbefehle.
+Die externen Schnittstellen werden im Kapitel <<_externe_schnittstellen, Externe Schnittstellen>> näher beschrieben.
 
-| **Prozess-Trennung**
-| Steuerlogik (Python) und Simulation (Unity) laufen in getrennten Prozessen.
-Eine direkte Integration ist nicht vorgesehen, wodurch eine lose Kopplung entsteht.
+| **Prozesstrennung**
+| Steuerlogik in Python und Simulation in Unity laufen in getrennten Prozessen.
+Eine direkte Integration von Python-Code in Unity ist nicht vorgesehen.
+Dadurch entsteht eine lose Kopplung zwischen Steuerung und Darstellung.
+
+| **Betriebsmodi**
+| Das System muss die Modi `virtual`, `real` und `both` unterstützen.
+Dadurch ergeben sich unterschiedliche Zielsysteme für denselben API-Aufruf: Simulation, reale Hardware oder beide gleichzeitig.
 
 | **Hardware-Plattform**
-| Das System soll auf Standard-Laptops (Windows, Linux, macOS) lauffähig sein.
-Es wird keine spezialisierte Hardware vorausgesetzt.
+| Das System soll auf Standard-Laptops mit Windows, Linux oder macOS lauffähig sein.
+Es wird keine spezialisierte Hardware vorausgesetzt, sofern nur die Simulation verwendet wird.
+Für den Modus `real` oder `both` wird ein physischer MyPalletizer 260 M5 benötigt.
+
+| **Abhängigkeit von Herstellerbibliotheken**
+| Für die reale Hardwareansteuerung ist `pymycobot` erforderlich.
+Diese Abhängigkeit begrenzt die Kontrolle über tieferliegende Hardwarefunktionen und kann bei Änderungen der Herstellerbibliothek Anpassungen im System notwendig machen.
+
+| **CAD- und Modellqualität**
+| Die Qualität der Simulation ist durch die verfügbaren CAD-Modelle und Unity-Modelle begrenzt.
+Wenn Hersteller-Modelle geometrisch vom realen Roboter abweichen, kann auch die Simulation nicht vollständig identisch zur Hardware sein.
+
+| **Kameraeinschränkung**
+| Die am realen Roboter vorhandene Kamera wird in der aktuellen Simulation nicht vollständig nachgebildet.
+Kamerabasierte Funktionen oder Bildverarbeitung können deshalb nicht vollständig innerhalb der Unity-Simulation getestet werden.
 
 |===
 
@@ -39,39 +62,57 @@ Es wird keine spezialisierte Hardware vorausgesetzt.
 
 === Organisatorische Rahmenbedingungen
 
-* **Open Source & Reproduzierbarkeit**
+* **Open Source und Reproduzierbarkeit**
   Das Projekt wird über GitHub verwaltet.
-  Alle Abhängigkeiten (z. B. `pymycobot`) müssen über Standard-Tools wie `pip` installierbar sein.
+  Alle notwendigen Abhängigkeiten, zum Beispiel `pymycobot`, sollen über Standard-Tools wie `pip` installierbar sein.
+  Die Installation und Nutzung sollen so dokumentiert sein, dass andere Personen das System nachvollziehen und reproduzieren können.
 
 * **Zeitrahmen**
-  Die Entwicklung erfolgt im Rahmen eines Semesters im Modul APPLAI.
+  Die Entwicklung erfolgt im Rahmen eines Semesters im Modul APPLAI und wird im Modul AI-ROBOTICS weiterentwickelt.
+  Dadurch ist der Projektumfang zeitlich begrenzt und es müssen Prioritäten bei Funktionalität, Genauigkeit und Stabilität gesetzt werden.
 
 * **Verfügbarkeit der Hardware**
-  Die realen Roboter steht nur eingeschränkt Stückzahl im Labor zur Verfügung.
-  Dies war ein zentraler Treiber für die Entwicklung der Simulation.
+  Die realen Roboter stehen nur in eingeschränkter Stückzahl im Labor zur Verfügung, aktuell zwei Stück.
+  Diese eingeschränkte Verfügbarkeit war ein zentraler Treiber für die Entwicklung der Simulation, damit Bewegungsabläufe auch ohne permanenten Hardwarezugriff getestet werden können.
 
 * **Nutzergruppe**
-  Die Hauptzielgruppe sind Studierende und Robotik-Interessierte, die den MyPalletizer kennenlernen und Bewegungsabläufe entwickeln möchten. Dabei soll die Programmierung gleich aufgebaut sein, wie die Hersteller-API, sodass nicht andere Kenntnisse als die Hersteller-API notwendig sind.
+  Die Hauptzielgruppe sind Studierende und Robotik-Interessierte, die den MyPalletizer kennenlernen und Bewegungsabläufe entwickeln möchten.
+  Die Programmierung soll sich möglichst ähnlich zur Hersteller-API anfühlen, damit vorhandenes Wissen über die Hersteller-API weiterverwendet werden kann.
+
+* **Wartbarkeit**
+  Die Architektur muss für Studierende und zukünftige Projektgruppen nachvollziehbar bleiben.
+  Deshalb werden einfache, transparente Technologien wie Python, JSON und UDP gegenüber komplexeren Middleware-Lösungen bevorzugt.
 
 ---
 
 === Konventionen und Standards
 
 * **Dokumentationsstandard**
-  Die Architektur wird gemäss **ARC42** dokumentiert.
+  Die Architektur wird gemäss **arc42** dokumentiert.
 
 * **Coding Standards**
   - Python: Orientierung an **PEP 8**
-  - C#: Orientierung an Unity-Konventionen
+  - C#: Orientierung an gängigen Unity-Konventionen
 
 * **Kommunikationsprotokoll**
   - Verwendung eines JSON-basierten Protokolls
-  - Versionierung der Nachrichten (aktuell Version 1)
+  - Versionierung der Nachrichten, aktuell Version `1`
+  - Einheitliches Feld `type` zur Identifikation des Befehls
+  - Einheitliches Feld `v` zur Angabe der Protokollversion
+
+* **Namenskonventionen**
+  - Python-Klassen verwenden aussagekräftige Namen wie `Robot` und `World`.
+  - Protokollbefehle verwenden sprechende Namen wie `move_joints`, `spawn`, `delete` oder `set_end_effector`.
+  - Ports und Standardwerte werden dokumentiert und nicht versteckt im Code verwendet.
 
 ---
 
 === Technische Annahmen
 
-* Die UDP-Kommunikation erfolgt lokal (localhost) und ohne Paketverlust.
-* Die Simulation muss keine vollständig physikalisch exakte Abbildung liefern, sondern ein plausibles Verhalten.
+* Die UDP-Kommunikation erfolgt primär lokal über `localhost` oder innerhalb eines stabilen lokalen Netzwerks.
+* Da UDP keine garantierte Zustellung bietet, muss das System mit einzelnen verlorenen Paketen umgehen können.
+* Die Simulation muss keine vollständig physikalisch exakte Abbildung liefern, sondern ein plausibles und nachvollziehbares Verhalten darstellen.
 * Der Benutzer verfügt über grundlegende Python-Kenntnisse zur Nutzung der API.
+* Der reale Roboter ist korrekt angeschlossen, eingeschaltet und über die serielle Schnittstelle erreichbar.
+* Die verwendeten UDP-Ports `5005` und `5006` sind auf dem Zielsystem verfügbar oder können bei Bedarf angepasst werden.
+* Unity und Python werden als getrennte Anwendungen gestartet und müssen gleichzeitig laufen, wenn die Simulation verwendet wird.

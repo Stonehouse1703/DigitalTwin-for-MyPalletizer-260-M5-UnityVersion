@@ -4,6 +4,7 @@ ifndef::imagesdir[:imagesdir: ../images]
 == Risks and Technical Debts
 
 Dieses Kapitel beschreibt mögliche Risiken sowie technische Kompromisse, die im aktuellen System bestehen.
+Die Risiken betreffen sowohl Architekturentscheidungen als auch konkrete Implementierungsdetails.
 
 === Architektur-Risiken
 
@@ -13,34 +14,61 @@ Dieses Kapitel beschreibt mögliche Risiken sowie technische Kompromisse, die im
 
 | **UDP ohne garantierte Zustellung**
 | Da UDP keine garantierte Zustellung bietet, können einzelne Pakete verloren gehen.
-*Minderung*: Das Protokoll überträgt jeweils den vollständigen Soll-Zustand, sodass ein späteres Paket einen verlorenen Zustand wieder korrigieren kann.
+*Minderung*: Das Protokoll überträgt bei Bewegungsbefehlen jeweils den vollständigen Soll-Zustand. Dadurch kann ein späteres Paket einen verlorenen Zustand wieder korrigieren.
 
 | **Unterschiedliches Verhalten von Simulation und Hardware**
-| Im Modus `both` kann es vorkommen, dass Simulation und realer Roboter nicht exakt gleich schnell reagieren.
+| Im Modus `both` kann es vorkommen, dass Simulation und realer Roboter nicht exakt gleich schnell reagieren oder sich leicht unterschiedlich bewegen.
 *Minderung*: Beide Systeme verwenden dieselben Zielwerte und denselben `speed`-Parameter. Für eine genauere Synchronisation wäre in Zukunft ein Rückkanal mit Ist-Werten sinnvoll.
 
 | **Port-Konflikte**
 | Die verwendeten UDP-Ports `5005` und `5006` könnten auf einem System bereits belegt sein.
 *Minderung*: Die Ports sind konfigurierbar und können bei Bedarf angepasst werden.
 
+| **Open-Loop-Architektur**
+| Die Python-Seite sendet Befehle, ohne aktiv zu prüfen, ob diese in der Simulation oder auf der Hardware exakt wie erwartet ausgeführt wurden.
+*Minderung*: Die Komplexität bleibt dadurch geringer. Für zukünftige Versionen wäre ein Feedback-Mechanismus mit Status- und Fehlernachrichten sinnvoll.
+
+| **Einseitige Kommunikation zur Simulation**
+| Die Kommunikation zur Simulation erfolgt aktuell hauptsächlich von Python nach Unity. Dadurch erhält die Python-Seite keine detaillierten Laufzeitinformationen aus Unity zurück.
+*Minderung*: Für zukünftige Erweiterungen könnte ein Rückkanal ergänzt werden, zum Beispiel für aktuelle Gelenkwinkel, Objektzustände oder Fehlerfälle.
+
+| **Abhängigkeit von Unity**
+| Die Simulation ist stark an Unity und C# gebunden. Ein Wechsel auf eine andere Simulationsumgebung wäre mit erheblichem Aufwand verbunden.
+*Minderung*: Die Kopplung wird reduziert, indem Python über JSON/UDP kommuniziert und nicht direkt von Unity-internen Klassen abhängig ist.
+
 |===
 
 === Implementierungs-Risiken und technische Schulden
 
-* **Abhängigkeit von Unity**
-  Die Simulation hängt von Unity und dessen Physikverhalten ab. Änderungen an der Unity-Version können Einfluss auf das Verhalten der Simulation haben.
-
-* **Open-Loop-Steuerung**
-  Die Python-Seite sendet Befehle, ohne aktiv zu prüfen, ob diese in der Simulation oder auf der Hardware exakt wie erwartet ausgeführt wurden.
-  Dies reduziert die Komplexität, bedeutet aber auch, dass kein vollständiges Feedback-System vorhanden ist.
-
 * **Begrenzte Modellgenauigkeit**
-  Die Simulation bildet den realen Roboter nur näherungsweise ab. Werte wie Bewegung, Reibung oder Interaktionen mit Objekten sind ausreichend für Tests und Demonstrationen, aber nicht für hochpräzise physikalische Analysen.
+  Die Simulation bildet den realen Roboter nur näherungsweise ab.
+  Werte wie Bewegung, Reibung, Greifverhalten oder Interaktionen mit Objekten sind ausreichend für Tests, Demonstrationen und Lernzwecke, aber nicht für hochpräzise physikalische Analysen.
+
+* **Ungenaue oder abweichende CAD-Modelle**
+  Die vom Hersteller bereitgestellten CAD-Modelle stimmen nicht vollständig mit dem realen Roboter überein.
+  Dadurch kann es zu geometrischen Abweichungen zwischen Simulation und Hardware kommen, zum Beispiel bei Abmessungen, Gelenkpositionen oder Bauteilformen.
+  Dies beeinflusst die visuelle Genauigkeit der Simulation und kann dazu führen, dass Bewegungen oder Kollisionen in Unity nicht exakt dem Verhalten des realen Roboters entsprechen.
+  Eine mögliche Minderung besteht darin, die CAD-Modelle manuell zu überprüfen, anzupassen oder bei Bedarf eigene vereinfachte Modelle zu erstellen, die näher an der realen Geometrie liegen.
+
+* **Nicht simulierte Roboterkamera**
+  Die am realen Roboter vorhandene Kamera wird in der aktuellen Simulation nicht nachgebildet.
+  Dadurch können kamerabasierte Funktionen, Bildverarbeitung oder visuelle Rückmeldungen nicht vollständig in Unity getestet werden.
+  Tests, die von Kamerabildern oder realen visuellen Informationen abhängen, müssen deshalb weiterhin mit der echten Hardware durchgeführt werden.
+  Eine mögliche spätere Verbesserung wäre die Integration einer virtuellen Kamera in Unity, die ähnliche Perspektiven und Bilddaten wie die reale Roboterkamera liefert.
 
 * **Abhängigkeit von `pymycobot`**
-  Der Modus `real` hängt von der externen Herstellerbibliothek `pymycobot` ab. Änderungen oder Inkompatibilitäten in dieser Bibliothek können direkte Auswirkungen auf die Hardwareansteuerung haben.
-  Eine mögliche spätere Verbesserung wäre eine noch stärkere Entkopplung durch eine eigene Hardware-Abstraktionsschicht.
+  Der Modus `real` hängt von der externen Herstellerbibliothek `pymycobot` ab.
+  Änderungen, Inkompatibilitäten oder Fehler in dieser Bibliothek können direkte Auswirkungen auf die Hardwareansteuerung haben.
+  Eine mögliche spätere Verbesserung wäre eine stärkere Entkopplung durch eine eigene Hardware-Abstraktionsschicht.
 
-* **Kein Rückkanal aus der Simulation**
-  Die Kommunikation zur Simulation erfolgt aktuell hauptsächlich in eine Richtung. Dadurch erhält die Python-Seite keine detaillierten Laufzeitinformationen aus Unity zurück.
-  Für zukünftige Erweiterungen könnte ein Rückkanal hilfreich sein, zum Beispiel für Statusinformationen oder Fehlerfälle.
+* **Threading in Unity**
+  UDP-Nachrichten werden ausserhalb des normalen Unity-Update-Zyklus empfangen.
+  Wenn Unity-Objekte direkt aus einem Hintergrundthread verändert würden, könnte dies zu instabilem Verhalten führen.
+  Deshalb werden Nachrichten zunächst in eine Queue gelegt und anschliessend im Unity-Hauptthread verarbeitet.
+  Diese Lösung reduziert das Risiko, erfordert aber sorgfältige Pflege der Bridge-Komponenten.
+
+* **Manuelle Systemtests**
+  Ein Teil der Systemtests wird manuell durchgeführt.
+  Dadurch können Testszenarien zwar praxisnah überprüft werden, sie sind aber weniger reproduzierbar als automatisierte Tests.
+  Eine mögliche technische Schuld besteht darin, dass Regressionen bei Änderungen an Python oder Unity nicht automatisch erkannt werden.
+  Langfristig wäre eine stärkere Automatisierung der Systemtests sinnvoll.

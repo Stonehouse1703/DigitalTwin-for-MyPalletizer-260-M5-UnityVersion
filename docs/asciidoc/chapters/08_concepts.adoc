@@ -4,18 +4,90 @@ ifndef::imagesdir[:imagesdir: ../images]
 == Cross-cutting Concepts
 
 In diesem Kapitel werden Konzepte beschrieben, die in mehreren Teilen des Systems verwendet werden.
+Diese Konzepte betreffen nicht nur einzelne Bausteine, sondern prägen die Architektur über mehrere Schichten hinweg.
 
 === Simulationskonzept
 
-Die Simulation des Roboters wird in Unity umgesetzt. Dabei besteht der Roboter aus mehreren miteinander verbundenen Gelenken, sodass die Untergeliederten Bauteile (z.B. J3) sich mitbewegen, wenn das übergeordnete Gelenk (z.B. J2) bewegt wird.
+Die Simulation des Roboters wird in Unity umgesetzt. Der Roboter besteht aus mehreren miteinander verbundenen Gelenken.
+Dadurch bewegen sich untergeordnete Bauteile mit, wenn ein übergeordnetes Gelenk bewegt wird.
+Beispielsweise bewegt sich ein nachgelagertes Gelenk wie `J3` mit, wenn ein vorgelagertes Gelenk wie `J2` gedreht wird.
 
 image::Joints.png[]
 
-Die Trennung in einzelne Gelenke ermöglicht es, Bewegungsbefehle aus der Python-Anwendung direkt auf die simulierte Roboterstruktur abzubilden. Dadurch können Zielwinkel für die einzelnen Achsen unabhängig verarbeitet und in der Simulation dargestellt werden.
+Die Trennung in einzelne Gelenke ermöglicht es, Bewegungsbefehle aus der Python-Anwendung direkt auf die simulierte Roboterstruktur abzubilden.
+Zielwinkel für die einzelnen Achsen können unabhängig verarbeitet und in der Simulation dargestellt werden.
+
+Die Simulation verwendet dabei ein vereinfachtes Modell des realen Roboters.
+Sie soll ein plausibles und nachvollziehbares Verhalten zeigen, ist jedoch keine vollständig physikalisch exakte Nachbildung.
+Abweichungen können insbesondere durch vereinfachte Modelle, CAD-Abweichungen oder Unterschiede in der physikalischen Simulation entstehen.
+
+=== Kommunikationskonzept
+
+Die Kommunikation zwischen Python und Unity basiert auf UDP und JSON.
+Python erzeugt strukturierte JSON-Nachrichten und sendet diese an die Unity-Simulation.
+
+Dabei werden zwei Kommunikationskanäle unterschieden:
+
+[cols="1,1,2", options="header"]
+|===
+| Kanal | Port | Zweck
+
+| **Roboterkanal**
+| `5005`
+| Überträgt Roboterbefehle wie Gelenkbewegungen, Werkzeugsteuerung, Pumpensteuerung und LED-Befehle.
+
+| **Weltkanal**
+| `5006`
+| Überträgt Weltbefehle wie `spawn`, `delete`, `clear` und das Laden von Szenarien.
+
+|===
+
+Die Trennung der Kanäle sorgt dafür, dass häufige Roboterbefehle nicht mit selteneren Weltbefehlen vermischt werden.
+Dadurch bleibt die Kommunikation übersichtlicher und leichter wartbar.
+
+Die Nachrichten enthalten immer eine Protokollversion `v` und ein Feld `type`.
+Dadurch kann Unity erkennen, welche Art von Befehl verarbeitet werden soll.
+
+=== Betriebsartenkonzept
+
+Das System unterstützt drei Betriebsarten:
+
+[cols="1,2", options="header"]
+|===
+| Modus | Beschreibung
+
+| **`virtual`**
+| Befehle werden nur an die Unity-Simulation gesendet.
+Dieser Modus eignet sich für Entwicklung und Tests ohne reale Hardware.
+
+| **`real`**
+| Befehle werden nur an den realen MyPalletizer 260 M5 gesendet.
+Die Kommunikation erfolgt über `pymycobot` und USB/Serial.
+
+| **`both`**
+| Befehle werden sowohl an die Simulation als auch an die reale Hardware gesendet.
+Dieser Modus eignet sich für Demonstrationen und den Vergleich zwischen simuliertem und realem Verhalten.
+
+|===
+
+Der Benutzer arbeitet in allen Betriebsarten mit derselben Python-API.
+Die Entscheidung, wohin ein Befehl gesendet wird, erfolgt intern im `MyPalletizerController`.
+
+=== Zustandskonzept
+
+Im virtuellen Betrieb speichert die Python-Seite den zuletzt gesendeten Soll-Zustand der Gelenke.
+Dieser Zustand wird in `_sim_angles` verwaltet und dient dazu, auch ohne reale Hardware sinnvolle Werte für `get_angles()` zurückgeben zu können.
+
+Dabei handelt es sich nicht um einen gemessenen Ist-Zustand aus Unity, sondern um den zuletzt gesetzten Zielzustand.
+Das ist wichtig, da aktuell kein vollständiger Rückkanal aus der Simulation existiert.
+
+Für die reale Hardware kann der Zustand über `pymycobot` vom Roboter abgefragt werden, sofern die entsprechende Funktion verfügbar ist.
+Im Modus `both` können Simulation und Hardware zeitweise voneinander abweichen, weil sie nicht über einen gemeinsamen Rückkanal synchronisiert werden.
 
 === End-Effektor-Konzept
 
-Der Roboter unterstützt unterschiedliche Werkzeuge, insbesondere Greifer und Pumpe. Diese Werkzeuge können sowohl über die Python-API ausgewählt als auch in der Simulation nachgebildet werden.
+Der Roboter unterstützt unterschiedliche Werkzeuge, insbesondere Greifer und Pumpe.
+Diese Werkzeuge können über die Python-API ausgewählt und in der Simulation nachgebildet werden.
 
 [plantuml, target="diagram-end-effector-concept", format="png"]
 ----
@@ -30,14 +102,51 @@ Pumpe --> Pumpe_Aktion : on / off
 ----
 
 Dieses Konzept sorgt dafür, dass verschiedene Werkzeugarten über dieselbe Schnittstelle angesprochen werden können.
+Der Benutzer muss nicht wissen, welche Unity-Komponente oder Hardwarefunktion intern verwendet wird.
+
+In der Simulation werden Werkzeugbefehle durch spezialisierte Komponenten verarbeitet:
+
+* `RobotToolManager` koordiniert die Werkzeugauswahl.
+* `SimpleGripperController` bildet das Verhalten des Greifers nach.
+* `SuctionPumpController` bildet das Verhalten der Vakuumpumpe nach.
 
 === Objekt- und Szenarienkonzept
 
-Für die Simulationswelt werden einfache Objekte wie Boxen, Kugeln oder Zylinder verwendet. Diese können über die Python-Seite erstellt und in Unity dargestellt werden.
+Für die Simulationswelt werden einfache Objekte wie Boxen, Kugeln oder Zylinder verwendet.
+Diese können über die Python-Seite erstellt und in Unity dargestellt werden.
 
-Zusätzlich unterstützt das System vordefinierte Szenarien (*Presets*), welches ein einfacherer Einstieg in die Nutzung ermöglicht.
+Objekte enthalten typischerweise folgende Eigenschaften:
 
-Objekte werden dabei über ihren Namen angesprochen. So können sie später gezielt gelöscht oder verändert werden.
+* Name
+* Objekttyp
+* Position
+* Rotation
+* Skalierung
+* Farbe
+
+Objekte werden über ihren Namen angesprochen.
+So können sie später gezielt gelöscht oder verändert werden.
+
+Zusätzlich unterstützt das System vordefinierte Szenarien, sogenannte *Presets*.
+Diese ermöglichen einen einfacheren Einstieg in die Nutzung und sorgen für reproduzierbare Testszenarien.
+Beispiele für Presets sind `empty`, `three_blocks`, `pick_and_place_basic` und `sorting_task`.
+
+=== Threading-Konzept in Unity
+
+UDP-Nachrichten werden in Unity nicht direkt auf Unity-Objekte angewendet.
+Stattdessen werden eingehende Nachrichten zunächst empfangen und in eine Queue gelegt.
+
+Die eigentliche Verarbeitung erfolgt anschliessend im Unity-Hauptthread.
+Dieses Vorgehen ist wichtig, da Unity-Objekte nicht sicher aus beliebigen Hintergrund-Threads verändert werden sollten.
+
+Dieses Konzept betrifft insbesondere:
+
+* `UnityUdpBridge`
+* `WorldUdpBridge`
+* `MyPalletizerArticulationAdapter`
+* `WorldSpawnManager`
+
+Dadurch bleibt die Verarbeitung stabiler und Threading-Probleme werden vermieden.
 
 === Fehlerbehandlung und Validierung
 
@@ -47,13 +156,38 @@ Dazu gehören unter anderem:
 
 * Begrenzung von Gelenkwinkeln
 * Begrenzung der Geschwindigkeit
+* Begrenzung von RGB-Werten
 * Prüfung von Objektparametern
-* Fehlerbehandlung bei ungültiger Konfiguration
+* Prüfung der Betriebsart
+* Fehlerbehandlung bei fehlender oder ungültiger Konfiguration
 
 Dadurch werden fehlerhafte Befehle möglichst früh erkannt und unzulässige Zustände vermieden.
+Beispielsweise sollte im Modus `real` oder `both` ein gültiger serieller Port angegeben sein, da sonst keine Verbindung zur Hardware aufgebaut werden kann.
 
 === Testkonzept
 
-Das Testkonzept umfasst sowhol Unit-Tests für die Python-API als auch für die Unity-Komponenten. Dabei werden typische Anwendungsfälle, Grenzfälle und Fehlerfälle abgedeckt, um die Stabilität und Zuverlässigkeit des Systems sicherzustellen.
+Das Testkonzept umfasst sowohl Unit-Tests für die Python-API als auch Tests für Unity-Komponenten.
+Dabei werden typische Anwendungsfälle, Grenzfälle und Fehlerfälle abgedeckt, um die Stabilität und Zuverlässigkeit des Systems sicherzustellen.
 
-Zudem wurden auch Systemtests implementiert, die Manuell ausgeführt wurden. Diese Tests decken auch die Interaktion zwischen Python und Unity ab, um sicherzustellen, dass die Kommunikation korrekt funktioniert und die Simulation wie erwartet reagiert. Dabei wurden diese im Github-Wiki dokumentiert, damit sie auch von anderen Benutzern nachvollzogen werden können https://github.com/Stonehouse1703/DigitalTwin-for-MyPalletizer-260-M5-UnityVersion/wiki/system-tests[LINK].
+Zusätzlich wurden Systemtests definiert und manuell ausgeführt.
+Diese Tests decken die Interaktion zwischen Python und Unity ab und prüfen, ob die Kommunikation korrekt funktioniert und die Simulation wie erwartet reagiert.
+
+Die Systemtests wurden im GitHub-Wiki dokumentiert, damit sie auch von anderen Benutzern nachvollzogen werden können:
+
+https://github.com/Stonehouse1703/DigitalTwin-for-MyPalletizer-260-M5-UnityVersion/wiki/system-tests[Systemtests im GitHub-Wiki]
+
+=== Sicherheitskonzept
+
+Die Simulation dient auch als Sicherheitsmechanismus.
+Bewegungsabläufe können zunächst virtuell getestet werden, bevor sie auf dem realen Roboter ausgeführt werden.
+Dadurch sinkt das Risiko, die Hardware durch falsche Winkel, ungeeignete Bewegungsabläufe oder fehlerhafte Skripte zu beschädigen.
+
+Die Sicherheit wird zusätzlich durch Validierungen unterstützt:
+
+* Gelenkwinkel werden begrenzt.
+* Geschwindigkeiten werden begrenzt.
+* Ungültige Objektparameter werden erkannt.
+* Die Hardwareansteuerung ist gekapselt.
+
+Trotzdem ersetzt die Simulation keine vollständige Sicherheitsprüfung am realen Roboter.
+Vor der Ausführung auf der Hardware muss weiterhin geprüft werden, ob der Arbeitsbereich frei ist und keine Kollisionen auftreten können.

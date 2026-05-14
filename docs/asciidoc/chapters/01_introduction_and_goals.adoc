@@ -3,42 +3,67 @@ ifndef::imagesdir[:imagesdir: ../images]
 [[section-introduction-and-goals]]
 == Introduction and Goals
 
-Das Projekt *DigitalTwin for MyPalletizer 260 M5* hat zum Ziel, eine realitätsnahe und performante Simulationsumgebung für den MyPalletizer-Roboterarm bereitzustellen.
+Das Projekt *DigitalTwin for MyPalletizer 260 M5* hat zum Ziel, eine realitätsnahe und performante Simulationsumgebung für den MyPalletizer 260 M5 bereitzustellen.
 
-Durch eine einheitliche Programmierschnittstelle für reale Hardware und Simulation kann derselbe Code in beiden Umgebungen verwendet werden. Dadurch wird das Lernen und Testen in der Robotik einfacher, sicherer und unabhängig vom Standort.
+Der Digital Twin soll es ermöglichen, den Roboterarm sowohl virtuell in Unity als auch real über die Hardware mit derselben Python-API zu steuern. Dadurch kann derselbe Programmcode in verschiedenen Betriebsmodi verwendet werden: nur in der Simulation, nur auf dem realen Roboter oder parallel in beiden Umgebungen.
 
-Dies ermöglicht es Studierenden und Robotik-Interessierten, die Funktionsweise des MyPalletizer besser zu verstehen, Bewegungsabläufe zu entwickeln und verschiedene Szenarien zu testen, ohne die Hardware zu gefährden oder vor Ort sein zu müssen.
+Ein zentraler praktischer Hintergrund ist die eingeschränkte Verfügbarkeit der realen Hardware. An der Hochschule Luzern (HSLU) steht der MyPalletizer nur in einem Laborraum zur Verfügung, der nicht jederzeit zugänglich ist. Zudem sind lediglich zwei Roboter vorhanden. Dadurch können nicht alle Studierenden jederzeit direkt mit der Hardware arbeiten.
 
-Ein praktischer Hintergrund dafür ist, dass die Hochschule Luzern (HSLU) den MyPalletizer nur in einem Laborraum zur Verfügung stellt, der nicht jederzeit zugänglich ist. Zudem stehen lediglich zwei Roboter zur Verfügung, was die Nutzung zusätzlich einschränkt.
+Die Simulation reduziert diese Einschränkung. Studierende und Robotik-Interessierte können Bewegungsabläufe entwickeln, Szenarien testen und die Funktionsweise des Roboters nachvollziehen, ohne dauerhaft Zugriff auf die reale Hardware zu benötigen. Gleichzeitig wird das Risiko reduziert, den realen Roboter durch fehlerhafte Bewegungen, falsche Winkel oder ungeeignete Tests zu beschädigen.
+
+Das System soll damit Lernen, Entwickeln und Testen in der Robotik einfacher, sicherer und ortsunabhängiger machen.
+
+=== Aufgabenstellung
+
+Das System soll eine Verbindung zwischen Python-Steuerung, Unity-Simulation und realem MyPalletizer 260 M5 herstellen.
+
+Dazu stellt die Python-Seite eine zentrale API bereit, über die Benutzer Roboterbewegungen, End-Effektor-Zustände und Simulationsobjekte steuern können. Intern entscheidet das System anhand des gewählten Betriebsmodus, ob ein Befehl an Unity, an die reale Hardware oder an beide Zielsysteme gesendet wird.
+
+Die Unity-Simulation visualisiert den Roboterarm und die Simulationswelt. Sie ermöglicht das Testen von Szenarien, ohne dass die reale Hardware verfügbar sein muss. Die reale Hardware wird über die Herstellerbibliothek `pymycobot` und eine serielle USB-Verbindung angesteuert.
 
 === Functional Requirements
 
 Das System erfüllt die folgenden funktionalen Anforderungen:
 
 * **Hybride Steuerung**
-  Umschaltung zwischen den Betriebsmodi `virtual` (Simulation), `real` (Hardware) und `both` (gleichzeitig) über eine zentrale Python-API. Dies wird im Kapitel <<_betriebsarten, Betriebsarten>> näher beschrieben.
+  Umschaltung zwischen den Betriebsmodi `virtual`, `real` und `both` über eine zentrale Python-API.
+  Dies wird im Kapitel <<_betriebsarten, Betriebsarten>> näher beschrieben.
 
-* **Gelenksteuerung (Kinematik)**
+  - `virtual`: Befehle werden nur an die Unity-Simulation gesendet.
+  - `real`: Befehle werden nur an den realen Roboter gesendet.
+  - `both`: Befehle werden sowohl an die Simulation als auch an die reale Hardware gesendet.
+
+* **Gelenksteuerung**
   - Vorgabe von Gelenkwinkeln für alle 4 Achsen des Roboters
-  - Unterstützung von synchronen Bewegungen (mehrere Gelenke gleichzeitig)
+  - Unterstützung von synchronen Bewegungen, bei denen mehrere Gelenke gemeinsam bewegt werden
+  - Unterstützung von asynchronen Bewegungen, sofern diese durch die API vorgesehen sind
   - Einstellbare Bewegungsgeschwindigkeit
-
+  - Begrenzung der Eingaben entsprechend zulässiger Wertebereiche
 
 * **End-Effektor-Steuerung**
-  - Steuerung eines Greifers (Öffnen/Schliessen)
+  - Steuerung eines Greifers, zum Beispiel Öffnen und Schliessen
   - Steuerung einer Vakuumpumpe
-  - Auswahl des aktiven Werkzeugs (Greifer oder Pumpe)
+  - Auswahl des aktiven Werkzeugs, zum Beispiel Greifer oder Pumpe
+  - Weiterleitung der Werkzeugbefehle an Simulation und/oder Hardware abhängig vom Betriebsmodus
 
 * **Dynamische Szenariengestaltung**
-  - Erstellen (Spawn) und Löschen von Objekten zur Laufzeit über Python
-  - Unterstützung von einfachen 3D-Objekten (z. B. Box, Sphere, Cylinder)
+  - Erstellen (`spawn`) und Löschen (`delete`) von Objekten zur Laufzeit über Python
+  - Zurücksetzen oder Leeren der Simulationswelt über `clear`
+  - Unterstützung einfacher 3D-Objekte, zum Beispiel Box, Sphere oder Cylinder
   - Zuweisung von Position, Rotation, Skalierung und Farbe
-  - Laden von vordefinierten Szenarien (Presets), siehe Kapitel <<_objekt_und_szenarienkonzept, Objekt- und Szenarienkonzept>>
+  - Laden von vordefinierten Szenarien (`Presets`), siehe Kapitel <<_objekt_und_szenarienkonzept, Objekt- und Szenarienkonzept>>
 
-* **Visuelles Feedback & Status**
+* **Visuelles Feedback und Status**
   - Darstellung der Roboterbewegung in der Unity-Simulation
-  - Steuerung der LED (RGB) am Roboter
+  - Darstellung der Simulationswelt mit Objekten und Werkzeugzuständen
+  - Steuerung der LED am realen Roboter
   - Darstellung der Szene aus verschiedenen Kameraperspektiven in Unity
+
+* **Kommunikation**
+  - Übertragung von Roboterbefehlen an Unity über UDP-Port `5005`
+  - Übertragung von Weltbefehlen an Unity über UDP-Port `5006`
+  - Übertragung von Hardwarebefehlen über Serial/USB mit `115200` Baud
+  - Verwendung strukturierter JSON-Nachrichten für die Kommunikation mit Unity
 
 ---
 
@@ -48,25 +73,59 @@ Die Architektur orientiert sich an folgenden Qualitätszielen:
 
 [cols="1,2,3", options="header"]
 |===
-| Ziel | Szenario | Maßnahme
+| Ziel | Szenario | Massnahme
+
+| **Benutzbarkeit**
+| Studierende sollen Bewegungsabläufe mit wenig Einarbeitungszeit entwickeln können.
+| Einheitliche Python-API mit verständlichen Klassen wie `Robot` und `World`.
 
 | **Latenz**
-| Ein Bewegungsbefehl soll möglichst schnell in der Simulation sichtbar sein (< 50 ms).
-| Verwendung von UDP für schnelle, verbindungslose Kommunikation.
+| Ein Bewegungsbefehl soll möglichst schnell in der Simulation sichtbar sein.
+| Verwendung von UDP für schnelle, verbindungslose Kommunikation zwischen Python und Unity.
+
+| **Konsistenz**
+| Derselbe Python-Code soll möglichst unverändert für Simulation und reale Hardware verwendet werden können.
+| Kapselung der Betriebsmodi `virtual`, `real` und `both` innerhalb der API.
 
 | **Realitätsnähe**
 | Die Simulation soll sich ähnlich wie der reale Roboter verhalten.
-| Begrenzung der Gelenkwinkel und Geschwindigkeiten entsprechend der Hardware.
+| Begrenzung der Gelenkwinkel und Geschwindigkeiten entsprechend der Hardware sowie Verwendung eines Robotermodells in Unity.
+
+| **Sicherheit**
+| Fehlerhafte oder riskante Bewegungsabläufe sollen zuerst ohne Gefahr für die Hardware getestet werden können.
+| Simulation als Testumgebung vor der Ausführung auf dem realen Roboter.
 
 | **Wartbarkeit**
-| Neue Funktionen oder Tools sollen einfach ergänzt werden können.
+| Neue Funktionen, Werkzeuge oder Weltbefehle sollen nachvollziehbar ergänzt werden können.
 | Klare Trennung zwischen Robot- und World-Logik sowie modulare Klassenstruktur.
 
 | **Portabilität**
-| Das System soll auf verschiedenen Betriebssystemen laufen.
-| Einsatz von Python und Unity als plattformunabhängige Technologien.
+| Das System soll auf verschiedenen Betriebssystemen lauffähig sein.
+| Einsatz von Python und Unity als plattformübergreifende Technologien.
+
+| **Nachvollziehbarkeit**
+| Kommunikation und Systemverhalten sollen während der Entwicklung einfach überprüfbar sein.
+| Verwendung lesbarer JSON-Nachrichten und dokumentierter Schnittstellen.
 
 |===
+
+---
+
+=== Nicht-Ziele
+
+Folgende Punkte sind nicht primäres Ziel des aktuellen Projekts:
+
+* **Keine hochpräzise physikalische Simulation**
+  Die Unity-Simulation soll ein plausibles Verhalten darstellen, ersetzt aber keine vollständige physikalische Analyse des realen Roboters.
+
+* **Keine vollständige Kamerasimulation**
+  Die am realen Roboter vorhandene Kamera wird aktuell nicht vollständig simuliert. Kamerabasierte Funktionen müssen deshalb weiterhin mit realer Hardware getestet werden.
+
+* **Kein vollständiges Closed-Loop-Regelungssystem**
+  Das System sendet Soll-Zustände an Simulation und Hardware, wertet jedoch aktuell keine vollständigen Ist-Zustände zur kontinuierlichen Regelung aus.
+
+* **Keine vollständige Ablösung der Herstellerbibliothek**
+  Die reale Hardwareansteuerung bleibt von `pymycobot` abhängig. Diese Abhängigkeit wird gekapselt, aber nicht vollständig ersetzt.
 
 ---
 
@@ -76,20 +135,24 @@ Die Architektur orientiert sich an folgenden Qualitätszielen:
 |===
 | Stakeholder | Rolle | Interessen / Erwartungen
 
-| **Studierende (HSLU)**
+| **Studierende der HSLU**
 | Endnutzer
-| Einfache Nutzung, verständliche API, sichere Umgebung zum Testen ohne Risiko für die Hardware
+| Einfache Nutzung, verständliche API, sichere Umgebung zum Testen von Bewegungsabläufen ohne Risiko für die Hardware.
 
-| **Dozierende (Prof. Dr. Jana Koehler)**
+| **Dozierende: Prof. Dr. Jana Koehler**
 | Auftraggeberin / Prüferin
-| Zuverlässiges Tool für Übungen und Projekte, einfache Reproduzierbarkeit
+| Zuverlässiges Tool für Übungen und Projekte, einfache Reproduzierbarkeit, nachvollziehbare Architektur und gute Dokumentation.
 
 | **Robotik-Interessierte**
 | Externe Nutzer
-| Gute Dokumentation, einfache Erweiterbarkeit, Open-Source Nutzung
+| Gute Dokumentation, einfache Installation, verständliche Beispiele und Möglichkeit zur Erweiterung des Systems.
 
-| **Entwickler (Colin Felber)**
+| **Entwickler: Colin Felber**
 | Entwickler
-| Klare Struktur, wartbarer Code, saubere Dokumentation als Teil der Studienleistung
+| Klare Struktur, wartbarer Code, saubere Dokumentation und erfolgreiche Umsetzung im Rahmen der Studienleistung.
+
+| **Zukünftige Projektgruppen**
+| Weiterentwickler
+| Verständliche Architektur, klare Schnittstellen, dokumentierte Entscheidungen und einfacher Einstieg in die Weiterentwicklung.
 
 |===

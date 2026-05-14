@@ -3,28 +3,48 @@ ifndef::imagesdir[:imagesdir: ../images]
 [[section-glossary]]
 == Glossary
 
-[cols="e,2e" options="header"]
+[cols="1,3", options="header"]
 |===
-|Term |Definition
+| Begriff | Definition
 
-|Digital Twin
-|Ein digitaler Zwilling ist ein virtuelles Abbild eines physischen Objekts (hier: MyPalletizer 260 M5), das dessen Verhalten und Zustand in Echtzeit simuliert.
+| **Digital Twin**
+| Ein digitaler Zwilling ist ein virtuelles Abbild eines physischen Objekts. In diesem Projekt bezeichnet der Begriff die Unity-Simulation des MyPalletizer 260 M5, die Bewegungen, Werkzeuge und einfache Szenarien nachbildet.
 
-|Articulation Body
-|Eine spezielle Komponente in Unity zur physikalischen Simulation von kinematischen Ketten (Robotern), die für hohe Stabilität bei Gelenkbewegungen sorgt.
+| **MyPalletizer 260 M5**
+| Der reale Roboterarm von Elephant Robotics, der in diesem Projekt simuliert und optional über die Python-API angesteuert wird.
 
-|UDP
-|User Datagram Protocol. Ein verbindungsloses Netzwerkprotokoll, das für seine geringe Latenz bekannt ist.
+| **Unity**
+| Eine Entwicklungsumgebung und Engine zur Erstellung der 3D-Simulation. In diesem Projekt wird Unity für Visualisierung, Gelenkbewegung, Werkzeugverhalten und Weltverwaltung verwendet.
 
-|JSON
-|JavaScript Object Notation. Ein kompaktes Datenformat zum Austausch von strukturierten Daten zwischen Python und Unity.
+| **Articulation Body**
+| Eine Unity-Komponente zur physikalischen Simulation von kinematischen Ketten. Sie wird verwendet, um die Gelenkstruktur des Roboterarms stabiler und nachvollziehbarer abzubilden.
 
-|pymycobot
-|Die offizielle Python-Library des Herstellers Elephant Robotics zur Ansteuerung der MyRobot-Serie.
+| **UDP**
+| User Datagram Protocol. Ein verbindungsloses Netzwerkprotokoll, das für geringe Latenz geeignet ist, aber keine garantierte Zustellung einzelner Pakete bietet.
 
-|APPLAI
-|Applied Artificial Intelligence: Das Modul an der HSLU, in dem dieses Projekt entwickelt wurde.
+| **JSON**
+| JavaScript Object Notation. Ein textbasiertes Datenformat zum Austausch strukturierter Nachrichten zwischen Python und Unity.
 
-|HSLU
-|Hochschule Luzern
+
+| **End-Effektor**
+| Werkzeug am Ende des Roboterarms. In diesem Projekt werden insbesondere Greifer und Vakuumpumpe betrachtet.
+
+| **Preset**
+| Vordefiniertes Szenario für die Simulationswelt. Presets ermöglichen wiederholbare Ausgangssituationen für Tests, Übungen und Demonstrationen.
+
+| **CAD-Modell**
+| Dreidimensionales Modell eines Bauteils oder Roboters. Im Projekt dienen CAD-Modelle als Grundlage für die visuelle Darstellung des Roboters in Unity.
+
+| **Open-Loop-Steuerung**
+| Steuerungsansatz, bei dem Befehle gesendet werden, ohne dass ihre erfolgreiche Ausführung aktiv über einen Rückkanal bestätigt wird.
+
+| **APPLAI**
+| Applied Artificial Intelligence. Modul an der Hochschule Luzern, in dessen Rahmen das Projekt entwickelt wurde.
+
+| **AI-ROBOTICS**
+| Modul an der Hochschule Luzern, in dem das Projekt weiterentwickelt wird.
+
+| **HSLU**
+| Hochschule Luzern.
+
 |===
