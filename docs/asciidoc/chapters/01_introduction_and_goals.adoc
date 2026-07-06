@@ -1,158 +1,78 @@
 ifndef::imagesdir[:imagesdir: ../images]
 
-[[section-introduction-and-goals]]
-== Introduction and Goals
+= Introduction and Goals
 
-Das Projekt *DigitalTwin for MyPalletizer 260 M5* hat zum Ziel, eine realitätsnahe und performante Simulationsumgebung für den MyPalletizer 260 M5 bereitzustellen.
+////
+Describes the relevant requirements and the driving forces that software architects and development team must consider. These include
 
-Der Digital Twin soll es ermöglichen, den Roboterarm sowohl virtuell in Unity als auch real über die Hardware mit derselben Python-API zu steuern. Dadurch kann derselbe Programmcode in verschiedenen Betriebsmodi verwendet werden: nur in der Simulation, nur auf dem realen Roboter oder parallel in beiden Umgebungen.
+• underlying business goals,
 
-Ein zentraler praktischer Hintergrund ist die eingeschränkte Verfügbarkeit der realen Hardware. An der Hochschule Luzern (HSLU) steht der MyPalletizer nur in einem Laborraum zur Verfügung, der nicht jederzeit zugänglich ist. Zudem sind lediglich zwei Roboter vorhanden. Dadurch können nicht alle Studierenden jederzeit direkt mit der Hardware arbeiten.
+• essential features,
 
-Die Simulation reduziert diese Einschränkung. Studierende und Robotik-Interessierte können Bewegungsabläufe entwickeln, Szenarien testen und die Funktionsweise des Roboters nachvollziehen, ohne dauerhaft Zugriff auf die reale Hardware zu benötigen. Gleichzeitig wird das Risiko reduziert, den realen Roboter durch fehlerhafte Bewegungen, falsche Winkel oder ungeeignete Tests zu beschädigen.
+• essential functional requirements,
 
-Das System soll damit Lernen, Entwickeln und Testen in der Robotik einfacher, sicherer und ortsunabhängiger machen.
+• quality goals for the architecture and
 
-=== Aufgabenstellung
+• relevant stakeholders and their expectations
+////
 
-Das System soll eine Verbindung zwischen Python-Steuerung, Unity-Simulation und realem MyPalletizer 260 M5 herstellen.
+== Functional Requirements 
 
-Dazu stellt die Python-Seite eine zentrale API bereit, über die Benutzer Roboterbewegungen, End-Effektor-Zustände und Simulationsobjekte steuern können. Intern entscheidet das System anhand des gewählten Betriebsmodus, ob ein Befehl an Unity, an die reale Hardware oder an beide Zielsysteme gesendet wird.
+////
+Short description of the functional requirements, driving forces, extract (or abstract) of requirements. Link to (hopefully existing) requirements documents (with version number and information where to find it).
 
-Die Unity-Simulation visualisiert den Roboterarm und die Simulationswelt. Sie ermöglicht das Testen von Szenarien, ohne dass die reale Hardware verfügbar sein muss. Die reale Hardware wird über die Herstellerbibliothek `pymycobot` und eine serielle USB-Verbindung angesteuert.
+Motivation
 
-=== Functional Requirements
+From the point of view of the end users a system is created or modified to improve support of a business activity and/or improve the quality.
 
-Das System erfüllt die folgenden funktionalen Anforderungen:
+Form
 
-* **Hybride Steuerung**
-  Umschaltung zwischen den Betriebsmodi `virtual`, `real` und `both` über eine zentrale Python-API.
-  Dies wird im Kapitel <<_betriebsarten, Betriebsarten>> näher beschrieben.
+Short textual description, probably in tabular use-case format. If requirements documents exist this overview should refer to these documents.
 
-  - `virtual`: Befehle werden nur an die Unity-Simulation gesendet.
-  - `real`: Befehle werden nur an den realen Roboter gesendet.
-  - `both`: Befehle werden sowohl an die Simulation als auch an die reale Hardware gesendet.
+Keep these excerpts as short as possible. Balance readability of this document with potential redundancy w.r.t to requirements documents.
+////
 
-* **Gelenksteuerung**
-  - Vorgabe von Gelenkwinkeln für alle 4 Achsen des Roboters
-  - Unterstützung von synchronen Bewegungen, bei denen mehrere Gelenke gemeinsam bewegt werden
-  - Unterstützung von asynchronen Bewegungen, sofern diese durch die API vorgesehen sind
-  - Einstellbare Bewegungsgeschwindigkeit
-  - Begrenzung der Eingaben entsprechend zulässiger Wertebereiche
 
-* **End-Effektor-Steuerung**
-  - Steuerung eines Greifers, zum Beispiel Öffnen und Schliessen
-  - Steuerung einer Vakuumpumpe
-  - Auswahl des aktiven Werkzeugs, zum Beispiel Greifer oder Pumpe
-  - Weiterleitung der Werkzeugbefehle an Simulation und/oder Hardware abhängig vom Betriebsmodus
+== Quality Goals 
 
-* **Dynamische Szenariengestaltung**
-  - Erstellen (`spawn`) und Löschen (`delete`) von Objekten zur Laufzeit über Python
-  - Zurücksetzen oder Leeren der Simulationswelt über `clear`
-  - Unterstützung einfacher 3D-Objekte, zum Beispiel Box, Sphere oder Cylinder
-  - Zuweisung von Position, Rotation, Skalierung und Farbe
-  - Laden von vordefinierten Szenarien (`Presets`), siehe Kapitel <<_objekt_und_szenarienkonzept, Objekt- und Szenarienkonzept>>
+////
+Contents
 
-* **Visuelles Feedback und Status**
-  - Darstellung der Roboterbewegung in der Unity-Simulation
-  - Darstellung der Simulationswelt mit Objekten und Werkzeugzuständen
-  - Steuerung der LED am realen Roboter
-  - Darstellung der Szene aus verschiedenen Kameraperspektiven in Unity
+The top three (max five) quality goals for the architecture whose fulfillment is of highest importance to the major stakeholders. We really mean quality goals for the architecture. Don’t confuse them with project goals. They are not necessarily identical.
 
-* **Kommunikation**
-  - Übertragung von Roboterbefehlen an Unity über UDP-Port `5005`
-  - Übertragung von Weltbefehlen an Unity über UDP-Port `5006`
-  - Übertragung von Hardwarebefehlen über Serial/USB mit `115200` Baud
-  - Verwendung strukturierter JSON-Nachrichten für die Kommunikation mit Unity
+Consider this overview of potential topics (based upon the ISO 25010 standard): 
 
----
+Motivation
 
-=== Quality Goals
+You should know the quality goals of your most important stakeholders, since they will influence fundamental architectural decisions. Make sure to be very concrete about these qualities, avoid buzzwords. If you as an architect do not know how the quality of your work will be judged…
 
-Die Architektur orientiert sich an folgenden Qualitätszielen:
+Form
 
-[cols="1,2,3", options="header"]
-|===
-| Ziel | Szenario | Massnahme
+A table with quality goals and concrete scenarios, ordered by priorities 
+////
 
-| **Benutzbarkeit**
-| Studierende sollen Bewegungsabläufe mit wenig Einarbeitungszeit entwickeln können.
-| Einheitliche Python-API mit verständlichen Klassen wie `Robot` und `World`.
 
-| **Latenz**
-| Ein Bewegungsbefehl soll möglichst schnell in der Simulation sichtbar sein.
-| Verwendung von UDP für schnelle, verbindungslose Kommunikation zwischen Python und Unity.
+== Stakeholders
+////
+Contents
 
-| **Konsistenz**
-| Derselbe Python-Code soll möglichst unverändert für Simulation und reale Hardware verwendet werden können.
-| Kapselung der Betriebsmodi `virtual`, `real` und `both` innerhalb der API.
+Explicit overview of stakeholders of the system, i.e. all person, roles or organizations that
 
-| **Realitätsnähe**
-| Die Simulation soll sich ähnlich wie der reale Roboter verhalten.
-| Begrenzung der Gelenkwinkel und Geschwindigkeiten entsprechend der Hardware sowie Verwendung eines Robotermodells in Unity.
+• should know the architecture
 
-| **Sicherheit**
-| Fehlerhafte oder riskante Bewegungsabläufe sollen zuerst ohne Gefahr für die Hardware getestet werden können.
-| Simulation als Testumgebung vor der Ausführung auf dem realen Roboter.
+• have to be convinced of the architecture
 
-| **Wartbarkeit**
-| Neue Funktionen, Werkzeuge oder Weltbefehle sollen nachvollziehbar ergänzt werden können.
-| Klare Trennung zwischen Robot- und World-Logik sowie modulare Klassenstruktur.
+• have to work with the architecture or with code
 
-| **Portabilität**
-| Das System soll auf verschiedenen Betriebssystemen lauffähig sein.
-| Einsatz von Python und Unity als plattformübergreifende Technologien.
+• need the documentation of the architecture for their work
 
-| **Nachvollziehbarkeit**
-| Kommunikation und Systemverhalten sollen während der Entwicklung einfach überprüfbar sein.
-| Verwendung lesbarer JSON-Nachrichten und dokumentierter Schnittstellen.
+• have to come up with decisions about the system or its development
 
-|===
+Motivation
 
----
+You should know all parties involved in development of the system or affected by the system. Otherwise, you may get nasty surprises later in the development process. These stakeholders determine the extent and the level of detail of your work and its results.
 
-=== Nicht-Ziele
+Form
 
-Folgende Punkte sind nicht primäres Ziel des aktuellen Projekts:
-
-* **Keine hochpräzise physikalische Simulation**
-  Die Unity-Simulation soll ein plausibles Verhalten darstellen, ersetzt aber keine vollständige physikalische Analyse des realen Roboters.
-
-* **Keine vollständige Kamerasimulation**
-  Die am realen Roboter vorhandene Kamera wird aktuell nicht vollständig simuliert. Kamerabasierte Funktionen müssen deshalb weiterhin mit realer Hardware getestet werden.
-
-* **Kein vollständiges Closed-Loop-Regelungssystem**
-  Das System sendet Soll-Zustände an Simulation und Hardware, wertet jedoch aktuell keine vollständigen Ist-Zustände zur kontinuierlichen Regelung aus.
-
-* **Keine vollständige Ablösung der Herstellerbibliothek**
-  Die reale Hardwareansteuerung bleibt von `pymycobot` abhängig. Diese Abhängigkeit wird gekapselt, aber nicht vollständig ersetzt.
-
----
-
-=== Stakeholders
-
-[cols="1,2,2", options="header"]
-|===
-| Stakeholder | Rolle | Interessen / Erwartungen
-
-| **Studierende der HSLU**
-| Endnutzer
-| Einfache Nutzung, verständliche API, sichere Umgebung zum Testen von Bewegungsabläufen ohne Risiko für die Hardware.
-
-| **Dozierende: Prof. Dr. Jana Koehler**
-| Auftraggeberin / Prüferin
-| Zuverlässiges Tool für Übungen und Projekte, einfache Reproduzierbarkeit, nachvollziehbare Architektur und gute Dokumentation.
-
-| **Robotik-Interessierte**
-| Externe Nutzer
-| Gute Dokumentation, einfache Installation, verständliche Beispiele und Möglichkeit zur Erweiterung des Systems.
-
-| **Entwickler: Colin Felber**
-| Entwickler
-| Klare Struktur, wartbarer Code, saubere Dokumentation und erfolgreiche Umsetzung im Rahmen der Studienleistung.
-
-| **Zukünftige Projektgruppen**
-| Weiterentwickler
-| Verständliche Architektur, klare Schnittstellen, dokumentierte Entscheidungen und einfacher Einstieg in die Weiterentwicklung.
-
-|===
+Table with role names, person names, and their expectations with respect to the architecture and its documentation.
+////
