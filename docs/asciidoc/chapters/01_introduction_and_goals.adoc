@@ -1,6 +1,6 @@
 ifndef::imagesdir[:imagesdir: ../images]
 
-= Introduction and Goals
+== Introduction and Goals
 
 ////
 Describes the relevant requirements and the driving forces that software architects and development team must consider. These include
@@ -16,7 +16,16 @@ Describes the relevant requirements and the driving forces that software archite
 • relevant stakeholders and their expectations
 ////
 
-== Functional Requirements 
+Das Projekt **DigitalTwin for MyPalletizer 260 M5** ist im Rahmen des Moduls Applied Artificial Intelligence (APPLAI) an der Hochschule Luzern (HSLU) entstanden. 
+
+Ziel des Projekts ist es, den Roboterarm "MyPalletizer 260 M5" in einer virtuellen Umgebung programmieren zu können. So lassen sich Bewegungsabläufe erst simulieren und optimieren, bevor sie am echten Roboter ausgeführt werden. Das hilft enorm dabei, teure Crashes und Schäden an der Hardware frühzeitig zu vermeiden. 
+
+Ein weiteres Problem, das gelöst werden soll: Die HSLU besitzt aktuell nur zwei dieser Roboterarme, weshalb sie für Studierende oft nicht verfügbar sind. Mit dem digitalen Zwilling können die Studierenden ihren Code nun jederzeit und von überall aus testen. 
+
+Da das Projekt Open Source ist, richtet es sich nicht nur an HSLU-Studierende, sondern an alle Robotik-Interessierten. Kurz gesagt: Das System soll das Lernen, Entwickeln und Testen in der Robotik einfacher, sicherer und komplett ortsunabhängig machen.
+
+
+=== Functional Requirements 
 
 ////
 Short description of the functional requirements, driving forces, extract (or abstract) of requirements. Link to (hopefully existing) requirements documents (with version number and information where to find it).
@@ -32,8 +41,15 @@ Short textual description, probably in tabular use-case format. If requirements 
 Keep these excerpts as short as possible. Balance readability of this document with potential redundancy w.r.t to requirements documents.
 ////
 
+Zu Beginn des Projekts wurden folgende funktionale Kernanforderungen festgelegt: 
 
-== Quality Goals 
+  * **3D-Visualisierung:** Der DigitalTwin muss den Roboterarm und seine Bewegungen in einer virtuellen 3D-Umgebung in Echtzeit visuell darstellen.
+  * **Nahtlose Code-Übernahme:** Die Simulation muss über eine Schnittstelle steuerbar sein, die exakt dieselben Steuerungsbefehle akzeptiert, die auch für den realen Roboter verwendet werden. Ein Umschreiben von Steuerungsskripten darf nicht nötig sein.
+  * **Werkzeug-Unterstützung:** Die Simulation muss die beiden an der HSLU vorhandenen End-Effektoren (Werkzeuge) unterstützen und visuell sowie physikalisch abbilden: den Greifer (Gripper) und die Vakuumpumpe (Suction Pump).
+  * **Interaktive Umgebung:** Benutzer sollen einfache Objekte in die virtuelle Umgebung einfügen können,
+
+
+=== Quality Goals 
 
 ////
 Contents
@@ -51,8 +67,35 @@ Form
 A table with quality goals and concrete scenarios, ordered by priorities 
 ////
 
+Die Architektur orientiert sich an den folgenden Top-5-Qualitätszielen:
 
-== Stakeholders
+[cols="1,2,3", options="header"]
+|===
+| Qualitätsziel | Konkretes Szenario | Architektonische Massnahme
+
+| **Austauschbarkeit** 
+| Ein Programmierer schreibt ein Steuerungsskript. Dieses Skript soll ohne Anpassungen am eigentlichen Code sowohl den digitalen Zwilling als auch den echten Roboter steuern können.
+| Implementierung eines Facade- bzw. Adapter-Patterns in der API, das die zugrundeliegende Schnittstelle (Simulation oder Hardware) komplett abstrahiert.
+
+| **Erweiterbarkeit** 
+| Wenn später ein neues Werkzeug (z. B. ein neuer Greifer) oder ein Umgebungs-Feature hinzugefügt wird, soll man dafür nicht den Kerncode der Roboterkinematik oder des Netzwerks umschreiben müssen.
+| Strikte Einhaltung des "Separation of Concerns"-Prinzips: Klare Trennung zwischen der Robot-Logik (Achsen, Kinematik) und der World-Logik (Umgebung, Objekte) in modulare Klassen.
+
+| **Integrität / Fehlertoleranz** 
+| Sendet jemand einen unlogischen oder gefährlichen Befehl (z. B. außerhalb des Arbeitsraums), muss das System diesen abfangen, bevor etwas passiert oder abstürzt.
+| Einbau einer Validierungsschicht (Validation Layer) direkt hinter der API, die jeden Input gegen ein mathematisches Modell prüft und bei Fehlern sofort abbricht (Fail-Fast-Prinzip).
+
+| **Zeitverhalten / Synchronisation** 
+| Das externe Steuerungsskript feuert Befehle in hoher Frequenz. Die Simulation muss diese flüssig und in Echtzeit darstellen, ohne dass sie irgendwann hinterherhinkt, weil sich Netzwerk-Daten stauen.
+| Nutzung von verbindungsloser UDP-Kommunikation in Kombination mit einem "Latest-State"-Mechanismus auf Simulationsseite: Veraltete Pakete werden lieber verworfen als verzögert abgearbeitet.
+
+| **Analysierbarkeit** 
+| Wenn in der Simulation etwas schiefgeht, muss man sofort nachvollziehen können, bei welchem Befehl es gekracht hat oder ob die Werte von Realität und Simulation abweichen.
+| Sauberes Logging der API-Aufrufe und Einbau eines Telemetrie-Rückkanals, der den aktuellen Ist-Zustand (wie die Gelenkwinkel) kontinuierlich an das externe Steuerungsskript zurückmeldet.
+
+|===
+
+=== Stakeholders
 ////
 Contents
 
@@ -76,3 +119,29 @@ Form
 
 Table with role names, person names, and their expectations with respect to the architecture and its documentation.
 ////
+
+[cols="1,2,2", options="header"]
+|===
+| Stakeholder | Rolle | Interessen / Erwartungen
+
+| **Studierende der HSLU**
+| Endnutzer
+| Einfache Bedienung, verständliche API, gefahrloses Testen von Code ohne Risiko für die echte Hardware.
+
+| **Dozierende: Prof. Dr. Jana Koehler**
+| Auftraggeberin / Prüferin
+| Stabiles Tool für Unterricht und Projekte, nachvollziehbare Architektur, saubere Dokumentation und einfache Reproduzierbarkeit.
+
+| **Robotik-Interessierte**
+| Externe Nutzer
+| Unkompliziertes Setup, gute Code-Beispiele und eine Architektur, die man leicht verstehen und nutzen kann (Open Source).
+
+| **Entwickler: Colin Felber**
+| Entwickler
+| Saubere Code-Struktur, gute Wartbarkeit, Lerneffekt und eine erfolgreiche Umsetzung als Studienleistung.
+
+| **Zukünftige Projektgruppen**
+| Weiterentwickler
+| Leichter Einstieg in den Code, dokumentierte Design-Entscheidungen und klare Schnittstellen, um neue Features anzubauen.
+
+|===

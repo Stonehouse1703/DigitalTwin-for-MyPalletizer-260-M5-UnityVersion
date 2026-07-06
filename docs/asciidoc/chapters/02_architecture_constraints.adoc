@@ -4,14 +4,26 @@ ifndef::imagesdir[:imagesdir: ../images]
 == Architecture Constraints
 ////
 Contents
-
-Any requirement that constraints software architects in their freedom of design and implementation decisions or decision about the development process. These constraints sometimes go beyond individual systems and are valid for whole organizations and companies.
-
-Motivation
-
-Architects should know exactly where they are free in their design decisions and where they must adhere to constraints. Constraints must always be dealt with; they may be negotiable, though.
-
-Form
-
-Simple tables of constraints with explanations. If needed you can subdivide them into technical constraints, organizational and political constraints and conventions (e.g. programming or versioning guidelines, documentation or naming conventions) 
+Any requirement that constraints software architects in their freedom of design and implementation decisions...
 ////
+
+In diesem Kapitel sind die Rahmenbedingungen dokumentiert, welche die architektonischen Entscheidungen für den DigitalTwin einschränken oder leiten. Da das Projekt im Hochschulumfeld und für eine exakt vorgegebene Hardware entwickelt wird, ergeben sich klare technische und organisatorische Vorgaben. Erschwerend kommt hinzu, dass das Projekt begleitend während des regulären Semesters entwickelt wird, was die zeitlichen Ressourcen stark limitiert.
+
+=== Technische Randbedingungen
+
+[cols="1,3", options="header"]
+|===
+| Randbedingung | Erklärung / Hintergrund
+
+| **Hardware: MyPalletizer 260 M5**
+| Das System muss exakt die physischen Eigenschaften (Kinematik, Reichweite, Gelenk-Limits) des realen *MyPalletizer 260 M5* von Elephant Robotics abbilden. Die Simulation wird durch die physische Realität diktiert.
+
+| **Python als Steuerungssprache**
+| Die API des digitalen Zwillings muss in **Python (ab Version 3.12)** implementiert werden. Da die Studierenden der HSLU die Roboter primär in Python programmieren, muss die Schnittstelle nahtlos in ihren bestehenden Workflow passen.
+
+| **Unity 3D Engine**
+| Für die Umsetzung der virtuellen Umgebung (Digitaler Zwilling) ist die Game-Engine Unity zwingend vorgegeben. Sie kombiniert Physik-Simulation und 3D-Rendering optimal für diesen Anwendungsfall.
+
+| **Plattformunabhängigkeit**
+| Da die Studierenden unterschiedliche Betriebssysteme nutzen, muss das Endprodukt (das Python-Package sowie der Unity-Build) ohne systemgebundene Workarounds auf Windows, macOS und Linux lauffähig sein.
+|===

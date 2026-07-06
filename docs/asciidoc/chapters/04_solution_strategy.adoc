@@ -24,4 +24,3 @@ Keep the explanations of such key decisions short.
 
 Motivate what was decided and why it was decided that way, based upon problem statement, quality goals and key constraints. Refer to details in the following sections.
 ////
-
