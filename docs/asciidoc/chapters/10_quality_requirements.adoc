@@ -1,78 +1,161 @@
 ifndef::imagesdir[:imagesdir: ../images]
 
 [[section-quality-requirements]]
-== Quality Requirements
-////
-Content
+=== Quality Requirements
+Die Qualitätsanforderungen machen die wichtigsten Ziele des Systems anhand konkreter Szenarien messbar.
+Sie beschreiben, welche Eigenschaften das System im Betrieb erfüllen soll und welche Architekturentscheidungen diese Ziele unterstützen.
 
-This section contains all relevant quality requirements.
-
-The most important of these requirements have already been described in section 1.2. (quality goals), therefore they should only be referenced here. In this section 10 you should also capture quality requirements with lesser importance, which will not create high risks when they are not fully achieved (but might be nice-to-have).
-
-Motivation
-
-Since quality requirements will have a lot of influence on architectural decisions you should know what qualities are really important for your stakeholders, in a spe
-
-• See Quality Requirements in the arc42 documentation. • See the extensive Q42 quality model on https://quality.arc42.org.
-////
 
 === Quality Requirements Overview
-////
-Content
+Für dieses System sind vor allem eine schnelle Reaktion, eine einfache Nutzung sowie ein robuster Betrieb wichtig.
+Da das System sowohl in der Lehre als auch für Tests verwendet wird, spielen zudem Portabilität, Wartbarkeit und Nachvollziehbarkeit eine wichtige Rolle.
 
-An overview or summary of quality requirements.
+[cols="1,1,2", options="header"]
+|===
+| Qualitätsmerkmal | Priorität | Begründung
 
-Motivation
+| **Performance**
+| Sehr hoch
+| Bewegungsbefehle sollen in der Simulation schnell sichtbar werden, damit sich die Steuerung direkt und natürlich anfühlt.
 
-Often we encounter dozens (or even hundreds) of detailed quality requirements. In this overview section you should try to summarize, e.g. by describing categories or topics (as suggested by ISO 25010:2023 or Q42)
+| **Bedienbarkeit**
+| Hoch
+| Die Zielgruppe besteht vor allem aus Studierenden und Robotik-Interessierten. Die API muss daher einfach verständlich und schnell nutzbar sein.
 
-If these summary descriptions are already precise, specific enough and measurable, you may skip section 10.2.
+| **Portabilität**
+| Hoch
+| Das System soll auf typischen Rechnern mit Windows, Linux oder macOS lauffähig sein.
 
-Form
+| **Robustheit**
+| Hoch
+| Fehler in der Simulation oder Kommunikation sollen das Python-Skript möglichst nicht unkontrolliert abbrechen lassen.
 
-Use a simple table in which each line contains a category or topic and a short description of the quality requirement. Alternatively, you may use a mindmap to structure these quality requirements. In literature, the idea of a quality attribute tree has also been described, which puts the generic term "quality" as the root and uses a tree-like refinement of the term "quality". [Bass+21] introduced the term "Quality Attribute Utility Tree" for this purpose. 
-////
+| **Realitätsnähe**
+| Hoch
+| Die Simulation soll das Verhalten des realen Roboters plausibel abbilden, auch wenn sie keine vollständig physikalisch exakte Nachbildung ist.
 
-=== Quality Scenarios 
-////
-Content
+| **Wartbarkeit**
+| Mittel
+| Neue Befehle, Presets oder Werkzeuge sollen ergänzt werden können, ohne die Grundarchitektur umzubauen.
 
-Quality scenarios make quality requirements concrete and allow to decide whether they are fulfilled (in the sense of acceptance criteria). Ensure that your scenarios are specific and measurable.
+| **Erweiterbarkeit**
+| Mittel
+| Das System soll später um weitere Weltobjekte, Werkzeuge oder Kommunikationsfunktionen erweitert werden können.
 
-Two kinds of scenarios are especially useful:
+| **Nachvollziehbarkeit**
+| Mittel
+| Nachrichten, Zustände und Fehler sollen für Entwicklung und Debugging verständlich bleiben.
 
-• Usage scenarios (also called application scenarios or use case scenarios) describe the system’s runtime reaction to a certain stimulus. This also includes scenarios that describe the system’s efficiency or performance. Example: The system reacts to a user’s request within one second.
+|===
 
-• Change scenarios describe the desired effect of a modification or extension of the system or of its immediate environment. Example: Additional functionality is implemented or requirements for a quality attribute change, and the effort or duration of the change is measured.
+=== Quality Tree
 
-Form
+Die Qualitätsziele lassen sich wie folgt strukturieren:
 
-Typical information for detailed scenarios include the following:
+[plantuml, target="diagram-quality-tree", format="png"]
+----
+@startmindmap
+* Qualität
+** Performance
+*** geringe Latenz bei Bewegungsbefehlen
+*** flüssige Darstellung in Unity
+** Bedienbarkeit
+*** einheitliche Python-API
+*** einfache Beispielskripte
+*** geringe Einstiegshürde
+** Robustheit
+*** Eingabevalidierung
+*** keine Blockierung bei fehlender Unity-Simulation
+*** begrenzte Auswirkungen von UDP-Paketverlust
+** Portabilität
+*** Windows
+*** Linux
+*** macOS
+** Wartbarkeit
+*** getrennte Robot- und World-Logik
+*** gekapseltes Protokollmodul
+*** gekapselte Herstellerbibliothek
+** Realitätsnähe
+*** Gelenkgrenzen
+*** Geschwindigkeitsbegrenzung
+*** plausible Werkzeuginteraktion
+@endmindmap
+----
 
-In short form (favoured in the Q42 model):
+=== Quality Scenarios
 
-• Context/Background: What kind of system or component, what is the envirionment or situation?
+[cols="1,1,3,2", options="header"]
+|===
+| ID | Qualitätsziel | Szenario | Akzeptanzkriterium
 
-• Source/Stimulus: Who or what initiates or triggers a behaviour, reaction or action.
+| **QS-1**
+| **Performance**
+| Ein Benutzer ruft `send_angles(...)` im Modus `virtual` auf. Die Simulation soll innerhalb kurzer Zeit sichtbar auf den Befehl reagieren.
+| Die Bewegung in Unity beginnt im Normalfall innerhalb von spätestens `50 ms`, sofern Unity bereits läuft und die UDP-Kommunikation lokal erfolgt.
 
-• Metric/Acceptance Criteria: A response including a measure or metric
+| **QS-2**
+| **Portabilität**
+| Ein Benutzer wechselt von einem Windows-System auf macOS oder Linux. Dasselbe Python-Skript soll weiterverwendet werden können.
+| Das Skript benötigt keine Codeänderungen, sofern Python, die Projektabhängigkeiten und bei Bedarf die passende Unity-Version installiert sind.
 
-The long form of scenarios (favoured by the SEI and [Bass+21]) is more detailed and includes the following information:
+| **QS-3**
+| **Robustheit**
+| Die Unity-Simulation wird während der Ausführung eines Python-Skripts beendet.
+| Das Python-Skript darf durch das Senden von UDP-Nachrichten nicht dauerhaft blockieren. Es soll weiterlaufen oder einen nachvollziehbaren Fehler liefern.
 
-• Scenario ID: A unique identifier for the scenario.
+| **QS-4**
+| **Eingabevalidierung**
+| Ein Benutzer sendet einen Gelenkwinkel ausserhalb des erlaubten Bereichs.
+| Der Wert wird vor der Weitergabe an Simulation oder Hardware auf den zulässigen Bereich begrenzt.
 
-• Scenario Name: A short, descriptive name for the scenario.
+| **QS-5**
+| **Bedienbarkeit**
+| Ein neuer Benutzer installiert die Software und führt ein Beispielskript aus.
+| Innerhalb von etwa `15 Minuten` soll eine erste Bewegung in der Simulation erfolgreich gestartet werden können.
 
-• Source: The entity (user, system, or event) that initiates the scenario.
+| **QS-6**
+| **Wartbarkeit**
+| Eine neue Nachricht für die Simulation soll ergänzt werden, zum Beispiel ein neuer Weltbefehl.
+| Die Erweiterung kann im `protocol`-Modul und in der zuständigen Unity-Komponente ergänzt werden, ohne bestehende Roboter- und Weltbefehle grundlegend umzubauen.
 
-• Stimulus: The triggering event or condition the system must address.
+| **QS-7**
+| **Realitätsnähe**
+| Ein Benutzer führt dieselbe Gelenkbewegung in der Simulation und auf dem realen Roboter aus.
+| Die Bewegungsrichtung, Gelenkreihenfolge und grobe Endposition sollen plausibel übereinstimmen. Kleine Abweichungen durch CAD-Modell, Physik und Laufzeiten sind zulässig.
 
-• Environment: The operational context or condition under which the system experiences the stimulus.
+| **QS-8**
+| **Fehlertoleranz**
+| Ein einzelnes UDP-Paket geht während einer Bewegung verloren.
+| Das System soll nicht abstürzen. Bei zustandsbasierten Bewegungsbefehlen kann ein späteres Paket den Zielzustand wieder korrigieren.
 
-• Artifact: The building-blocks or other elements of the system affected by the stimulus.
+| **QS-9**
+| **Sicherheit**
+| Ein Benutzer gibt eine zu hohe Geschwindigkeit oder ungültige RGB-Werte ein.
+| Die Werte werden vor der Ausführung auf erlaubte Bereiche begrenzt, damit keine offensichtlich ungültigen Befehle an Simulation oder Hardware gesendet werden.
 
-• Response: The outcome or behavior the system exhibits in reaction to the stimulus.
+| **QS-10**
+| **Nachvollziehbarkeit**
+| Während der Entwicklung tritt ein Fehler in einer JSON-Nachricht oder in einem Weltbefehl auf.
+| Die Nachrichtenstruktur ist durch `v` und `type` eindeutig genug, um den Fehler im Protokoll oder in der zuständigen Unity-Komponente gezielt einzugrenzen.
 
-• Response Measure: The criteria or metric by which the system’s response is evaluated. 
-////
+| **QS-11**
+| **Erweiterbarkeit**
+| Es soll ein neues Simulationsobjekt ergänzt werden, zum Beispiel ein weiterer geometrischer Körper.
+| Das neue Objekt kann über die Objektstruktur und den `WorldSpawnManager` ergänzt werden, ohne die Robotersteuerung zu verändern.
 
+| **QS-12**
+| **Reproduzierbarkeit**
+| Ein Dozent oder Benutzer möchte ein Testszenario erneut ausführen.
+| Durch Presets kann dieselbe Ausgangssituation mehrfach geladen werden, ohne alle Objekte manuell neu zu erstellen.
+
+|===
+
+=== Hinweise zu Zielkonflikten
+
+Einige Qualitätsziele stehen teilweise im Konflikt zueinander:
+
+* **Performance vs. garantierte Zustellung**
+  UDP wurde gewählt, um niedrige Latenz zu erreichen. Dafür wird keine garantierte Zustellung einzelner Pakete geboten.
+
+* **Realitätsnähe vs. Entwicklungsaufwand**
+  Eine vollständig physikalisch exakte Simulation wäre deutlich aufwendiger. Das Projekt priorisiert daher eine plausible und lernorientierte Simulation.
