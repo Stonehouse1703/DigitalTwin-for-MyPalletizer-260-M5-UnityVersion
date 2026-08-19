@@ -1,147 +1,83 @@
 ifndef::imagesdir[:imagesdir: ../images]
 
+[[section-introduction-and-goals]]
 == Introduction and Goals
 
-////
-Describes the relevant requirements and the driving forces that software architects and development team must consider. These include
+Das Projekt **DigitalTwin for MyPalletizer 260 M5** entstand im Rahmen des Moduls Applied Artificial Intelligence (APPLAI) an der Hochschule Luzern (HSLU). 
 
-• underlying business goals,
+Ziel des Projekts ist es, den 4-Achs-Roboterarm MyPalletizer 260 M5 in einer virtuellen 3D-Simulationsumgebung vollständig abbilden und programmieren zu können. Dadurch lassen sich Bewegungsabläufe, Pick-and-Place-Szenarien und Werkzeugsteuerungen gefahrlos simulieren und optimieren, bevor sie auf der physischen Hardware ausgeführt werden. Dies minimiert das Risiko mechanischer Beschädigungen und teurer Kollisionen.
 
-• essential features,
+Ein wesentlicher Treiber des Projekts ist die begrenzte Hardwareverfügbarkeit. Dies da an der Hochschule nur zwei physische Roboterarme für den Unterricht zur Verfügung stehen, ermöglicht der digitale Zwilling allen Studierenden das orts- und zeitunabhängige Entwickeln und Testen von Steuerungsprogrammen. Als Open-Source-Projekt soll die Software zudem der Robotik-Community zugänglich gemacht werden.
 
-• essential functional requirements,
+=== Functional Requirements
 
-• quality goals for the architecture and
+Das System erfüllt folgende funktionale Kernanforderungen:
 
-• relevant stakeholders and their expectations
-////
-
-Das Projekt **DigitalTwin for MyPalletizer 260 M5** ist im Rahmen des Moduls Applied Artificial Intelligence (APPLAI) an der Hochschule Luzern (HSLU) entstanden. 
-
-Ziel des Projekts ist es, den Roboterarm "MyPalletizer 260 M5" in einer virtuellen Umgebung programmieren zu können. So lassen sich Bewegungsabläufe erst simulieren und optimieren, bevor sie am echten Roboter ausgeführt werden. Das hilft enorm dabei, teure Crashes und Schäden an der Hardware frühzeitig zu vermeiden. 
-
-Ein weiteres Problem, das gelöst werden soll: Die HSLU besitzt aktuell nur zwei dieser Roboterarme, weshalb sie für Studierende oft nicht verfügbar sind. Mit dem digitalen Zwilling können die Studierenden ihren Code nun jederzeit und von überall aus testen. 
-
-Da das Projekt Open Source ist, richtet es sich nicht nur an HSLU-Studierende, sondern an alle Robotik-Interessierten. Kurz gesagt: Das System soll das Lernen, Entwickeln und Testen in der Robotik einfacher, sicherer und komplett ortsunabhängig machen.
-
-
-=== Functional Requirements 
-
-////
-Short description of the functional requirements, driving forces, extract (or abstract) of requirements. Link to (hopefully existing) requirements documents (with version number and information where to find it).
-
-Motivation
-
-From the point of view of the end users a system is created or modified to improve support of a business activity and/or improve the quality.
-
-Form
-
-Short textual description, probably in tabular use-case format. If requirements documents exist this overview should refer to these documents.
-
-Keep these excerpts as short as possible. Balance readability of this document with potential redundancy w.r.t to requirements documents.
-////
-
-Zu Beginn des Projekts wurden folgende funktionale Kernanforderungen festgelegt: 
-
-  * **3D-Visualisierung:** Der DigitalTwin muss den Roboterarm und seine Bewegungen in einer virtuellen 3D-Umgebung in Echtzeit visuell darstellen.
-  * **Nahtlose Code-Übernahme:** Die Simulation muss über eine Schnittstelle steuerbar sein, die exakt dieselben Steuerungsbefehle akzeptiert, die auch für den realen Roboter verwendet werden. Ein Umschreiben von Steuerungsskripten darf nicht nötig sein.
-  * **Werkzeug-Unterstützung:** Die Simulation muss die beiden an der HSLU vorhandenen End-Effektoren (Werkzeuge) unterstützen und visuell sowie physikalisch abbilden: den Greifer (Gripper) und die Vakuumpumpe (Suction Pump).
-  * **Interaktive Umgebung:** Benutzer sollen einfache Objekte in die virtuelle Umgebung einfügen können,
-
-
-=== Quality Goals 
-
-////
-Contents
-
-The top three (max five) quality goals for the architecture whose fulfillment is of highest importance to the major stakeholders. We really mean quality goals for the architecture. Don’t confuse them with project goals. They are not necessarily identical.
-
-Consider this overview of potential topics (based upon the ISO 25010 standard): 
-
-Motivation
-
-You should know the quality goals of your most important stakeholders, since they will influence fundamental architectural decisions. Make sure to be very concrete about these qualities, avoid buzzwords. If you as an architect do not know how the quality of your work will be judged…
-
-Form
-
-A table with quality goals and concrete scenarios, ordered by priorities 
-////
-
-Die Architektur orientiert sich an den folgenden Top-5-Qualitätszielen:
-
-[cols="1,2,3", options="header"]
+[cols="1,3", options="header"]
 |===
-| Qualitätsziel | Konkretes Szenario | Architektonische Massnahme
+| Anforderung | Beschreibung
 
-| **Austauschbarkeit** 
-| Ein Programmierer schreibt ein Steuerungsskript. Dieses Skript soll ohne Anpassungen am eigentlichen Code sowohl den digitalen Zwilling als auch den echten Roboter steuern können.
-| Implementierung eines Facade- bzw. Adapter-Patterns in der API, das die zugrundeliegende Schnittstelle (Simulation oder Hardware) komplett abstrahiert.
+| **3D-Visualisierung**
+| Der digitale Zwilling stellt den Roboterarm, seine Gelenkbewegungen und seine Arbeitsumgebung in Echtzeit in einer 3D-Simulation (Unity) dar.
 
-| **Erweiterbarkeit** 
-| Wenn später ein neues Werkzeug (z. B. ein neuer Greifer) oder ein Umgebungs-Feature hinzugefügt wird, soll man dafür nicht den Kerncode der Roboterkinematik oder des Netzwerks umschreiben müssen.
-| Strikte Einhaltung des "Separation of Concerns"-Prinzips: Klare Trennung zwischen der Robot-Logik (Achsen, Kinematik) und der World-Logik (Umgebung, Objekte) in modulare Klassen.
+| **Python-API**
+| Die Steuerung des Roboters erfolgt über die gleichen Befehle, die auch für die physische Hardware verwendet werden. Dadurch können Steuerungsskripte sowohl in der Simulation als auch auf dem realen Roboter ausgeführt werden, ohne dass Codeänderungen erforderlich sind.
 
-| **Integrität / Fehlertoleranz** 
-| Sendet jemand einen unlogischen oder gefährlichen Befehl (z. B. außerhalb des Arbeitsraums), muss das System diesen abfangen, bevor etwas passiert oder abstürzt.
-| Einbau einer Validierungsschicht (Validation Layer) direkt hinter der API, die jeden Input gegen ein mathematisches Modell prüft und bei Fehlern sofort abbricht (Fail-Fast-Prinzip).
+| **Werkzeugunterstützung (Endeffektoren)**
+| Die Simulation bildet die verfügbaren Werkzeuge visuell und funktional ab: den Parallelgreifer (Gripper) zum mechanischen Greifen sowie die Vakuumpumpe (Suction Pump) zum Ansaugen von Objekten.
 
-| **Zeitverhalten / Synchronisation** 
-| Das externe Steuerungsskript feuert Befehle in hoher Frequenz. Die Simulation muss diese flüssig und in Echtzeit darstellen, ohne dass sie irgendwann hinterherhinkt, weil sich Netzwerk-Daten stauen.
-| Nutzung von verbindungsloser UDP-Kommunikation in Kombination mit einem "Latest-State"-Mechanismus auf Simulationsseite: Veraltete Pakete werden lieber verworfen als verzögert abgearbeitet.
+| **Dynamische Simulationswelt**
+| Benutzer können über eine API geometrische Objekte (Würfel, Kugeln, Zylinder) zur Laufzeit in die virtuelle Szene einfügen, gezielt löschen oder vordefinierte Übungsszenarien (Presets) laden.
 
-| **Analysierbarkeit** 
-| Wenn in der Simulation etwas schiefgeht, muss man sofort nachvollziehen können, bei welchem Befehl es gekracht hat oder ob die Werte von Realität und Simulation abweichen.
-| Sauberes Logging der API-Aufrufe und Einbau eines Telemetrie-Rückkanals, der den aktuellen Ist-Zustand (wie die Gelenkwinkel) kontinuierlich an das externe Steuerungsskript zurückmeldet.
+|===
+
+=== Quality Goals
+
+Die Systemarchitektur orientiert sich an den folgenden vier Qualitätszielen:
+
+[cols="1,1,2,3", options="header"]
+|===
+| Priorität | Qualitätsziel | Konkretes Szenario | Architektonische Massnahme
+
+| **1**
+| **Austauschbarkeit**
+| Ein Entwickler erstellt ein Steuerungsskript in Python. Dasselbe Skript soll ohne Codeanpassungen die Simulation, den realen Roboter oder beide Systeme synchron ansteuern können.
+| Kapselung der Zielsysteme hinter einem Fassaden- und Adaptermuster (`Robot`, `MyPalletizerController`), wodurch die modusspezifische Verteilung intern erfolgt.
+
+| **2**
+| **Zeitverhalten**
+| Kontinuierliche Bewegungsbefehle sollen flüssig und ohne spürbare Verzögerung in der 3D-Simulation visualisiert werden.
+| Verwendung von verbindungsloser UDP-Kommunikation mit vollständigen Zustandspaketen sowie Entkopplung von Netzwerkempfang und Rendering über eine Thread-sichere Warteschlange in Unity.
+
+| **3**
+| **Zuverlässigkeit & Fehlertoleranz**
+| Ungültige Parameter (z. B. Gelenkwinkel ausserhalb des zulässigen Bereichs) oder Netzwerkunterbrüche dürfen weder zum Systemabsturz noch zu unkontrollierten Hardwarebewegungen führen.
+| Implementierung einer strikten Validierungsschicht (Fail-Fast) in Python sowie einer fehlertoleranten Deserialisierung auf Unity-Seite.
+
+| **4**
+| **Wartbarkeit & Modularität**
+| Neue Werkzeuge, Umgebungsobjekte oder Übungsszenarien sollen ergänzt werden können, ohne die bestehende Kinematik- oder Netzwerkarchitektur verändern zu müssen.
+| Strikte Trennung der Zuständigkeiten (*Separation of Concerns*) zwischen Robotersteuerung (`Robot`) und Umgebungsverwaltung (`World`) auf separaten Netzwerkports (`5005` und `5006`).
 
 |===
 
 === Stakeholders
-////
-Contents
 
-Explicit overview of stakeholders of the system, i.e. all person, roles or organizations that
-
-• should know the architecture
-
-• have to be convinced of the architecture
-
-• have to work with the architecture or with code
-
-• need the documentation of the architecture for their work
-
-• have to come up with decisions about the system or its development
-
-Motivation
-
-You should know all parties involved in development of the system or affected by the system. Otherwise, you may get nasty surprises later in the development process. These stakeholders determine the extent and the level of detail of your work and its results.
-
-Form
-
-Table with role names, person names, and their expectations with respect to the architecture and its documentation.
-////
+Die folgende Tabelle führt die wichtigsten Personengruppen und Rollen auf, die Anforderungen an das System stellen oder mit dessen Architektur arbeiten:
 
 [cols="1,2,2", options="header"]
 |===
-| Stakeholder | Rolle | Interessen / Erwartungen
+| Stakeholder | Rolle | Interessen und Erwartungen
 
 | **Studierende der HSLU**
-| Endnutzer
-| Einfache Bedienung, verständliche API, gefahrloses Testen von Code ohne Risiko für die echte Hardware.
+| Primäre Endnutzer
+| Intuitive Python-API, verständliche Codebeispiele,einfache Installation, gefahrloses und ortsunabhängiges Testen von Robotik-Algorithmen.
 
-| **Dozierende: Prof. Dr. Jana Koehler**
-| Auftraggeberin / Prüferin
-| Stabiles Tool für Unterricht und Projekte, nachvollziehbare Architektur, saubere Dokumentation und einfache Reproduzierbarkeit.
+| **Dozierende (Prof. Dr. Jana Koehler)**
+| Auftraggeberin und Prüferin
+| Stabiles und reproduzierbares Werkzeug für Vorlesungen und Aufgaben, nachvollziehbare Architektur und saubere arc42-Dokumentation.
 
-| **Robotik-Interessierte**
-| Externe Nutzer
-| Unkompliziertes Setup, gute Code-Beispiele und eine Architektur, die man leicht verstehen und nutzen kann (Open Source).
-
-| **Entwickler: Colin Felber**
-| Entwickler
-| Saubere Code-Struktur, gute Wartbarkeit, Lerneffekt und eine erfolgreiche Umsetzung als Studienleistung.
-
-| **Zukünftige Projektgruppen**
-| Weiterentwickler
-| Leichter Einstieg in den Code, dokumentierte Design-Entscheidungen und klare Schnittstellen, um neue Features anzubauen.
-
+| **Entwickler (Colin Felber)**
+| Softwarearchitekt und Implementierer
+| Klare Modulstruktur, hohe Codequalität, einfache Erweiterbarkeit und erfolgreicher Projektabschluss im Modul APPLAI.
 |===

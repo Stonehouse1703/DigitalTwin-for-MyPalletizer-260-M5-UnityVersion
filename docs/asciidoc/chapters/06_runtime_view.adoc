@@ -2,39 +2,319 @@ ifndef::imagesdir[:imagesdir: ../images]
 
 [[section-runtime-view]]
 == Runtime View
-////
-Contents
 
-The runtime view describes concrete behavior and interactions of the system’s building blocks in form of scenarios from the following areas:
+Die Laufzeitsicht beschreibt das dynamische Verhalten des Systems anhand der fünf wichtigsten Ablauf- und Interaktionsszenarien zwischen Benutzer, Python Control Layer, Unity Simulation Layer und physischer Hardware.
 
-• important use cases or features: how do building blocks execute them?
+=== Szenario 1: Initialisierung und Verbindungsaufbau
 
-• interactions at critical external interfaces: how do building blocks cooperate with users and neighboring systems?
+Dieses Szenario zeigt die Instanziierung der Hauptkomponenten bei Programmstart (exemplarisch im Modus `both`).
 
-• operation and administration: launch, start-up, stop
+[plantuml, target="diagram-runtime-initialization", format="png"]
+----
+@startuml
+skinparam BoxPadding 10
+skinparam ParticipantPadding 10
 
-• error and exception scenarios
+actor "Benutzer" as User
+participant "Robot (Fassade)" as Robot
+participant "MyPalletizerController" as MPC
+participant "pymycobot\n(MyPalletizer260)" as PMC
+participant "World (Fassade)" as World
+database "Unity Simulation" as Unity
 
-Remark: The main criterion for the choice of possible scenarios (sequences, workflows) is their architectural relevance. It is not important to describe a large number of scenarios. You should rather document a representative selection.
+== 1. Roboter-Initialisierung ==
+User -> Robot : Robot(mode=BOTH, port="/dev/ttyUSB0")
+activate Robot
 
-Motivation
+Robot -> Robot : _validate(cfg) (Prüfe Port für BOTH)
+Robot -> MPC : MyPalletizerController(mode="both", port="/dev/ttyUSB0")
+activate MPC
 
-You should understand how (instances of) building blocks of your system perform their job and communicate at runtime. You will mainly capture scenarios in your documentation to communicate your architecture to stakeholders that are less willing or able to read and understand the static models (building block view, deployment view).
+MPC -> PMC : MyPalletizer260("/dev/ttyUSB0", 115200)
+activate PMC
+PMC --> MPC : Serielle Verbindung aufgebaut
+deactivate PMC
 
-Form
+MPC -> PMC : power_on() (Servos bestromen)
+MPC -> MPC : socket(AF_INET, SOCK_DGRAM) (Port 5005)
+MPC --> Robot : Controller betriebsbereit
+deactivate MPC
 
-There are many notations for describing scenarios, e.g.
+Robot --> User : Robot-Instanz bereit
+deactivate Robot
 
-• numbered list of steps (in natural language)
+== 2. Welt-Initialisierung ==
+User -> World : World(ip="127.0.0.1", udp_port=5006)
+activate World
+World -> World : _validate()
+World -> World : socket(AF_INET, SOCK_DGRAM) (Port 5006)
+World --> User : World-Instanz bereit
+deactivate World
 
-• activity diagrams or flow charts
+@enduml
+----
 
-• sequence diagrams
+==== Ablaufbeschreibung:
+1. **API-Aufruf:** Der Benutzer erzeugt eine `Robot`-Instanz im Modus `both` mit Angabe des seriellen Schnittstellenports.
+2. **Validierung:** `_validate()` prüft, ob für den Modus `both` bzw. `real` ein gültiger Schnittstellenpfad übergeben wurde (Fail-Fast).
+3. **Controller-Instanziierung:** Der `MyPalletizerController` baut die serielle Verbindung über `pymycobot` auf, initialisiert die Servomotoren mit `power_on()` und öffnet einen UDP-Socket für die Simulation auf Port `5005`.
+4. **Welt-Setup:** Die Instanziierung von `World` öffnet einen separaten UDP-Socket auf Port `5006` zur Übertragung von Szenenbefehlen.
 
-• BPMN or EPCs (event process chains)
+=== Szenario 2: Asynchrone Gelenkbewegung (`send_angles`)
 
-• state machines
+In diesem Szenario sendet der Benutzer Gelenkwinkel asynchron ("Fire-and-Forget"). Das Python-Programm fährt sofort fort, während Unity und die Hardware die Bewegung unabhängig ausführen.
 
-• … 
-////
+[plantuml, target="diagram-runtime-move-async", format="png"]
+----
+@startuml
+actor "Benutzer" as User
+participant "Robot" as Robot
+participant "MyPalletizerController" as MPC
+participant "protocol" as Proto
+participant "pymycobot" as PMC
+database "Unity Simulation" as Unity
+participant "UnityUdpBridge\n(Port 5005)" as UUB
+participant "MyPalletizerArticulationAdapter" as Adapter
 
+User -> Robot : send_angles(j1, j2, j3, j4, speed=40)
+activate Robot
+
+Robot -> MPC : send_angles(j1, j2, j3, j4, 40)
+activate MPC
+
+MPC -> MPC : _clamp() (Limits j1..j4 prüfen)
+MPC -> MPC : _clamp_speed(40)
+MPC -> MPC : _sim_angles = [j1, j2, j3, j4]
+
+group Simulations-Pfad (Modus 'virtual' / 'both')
+    MPC -> Proto : build_move_msg(j1, j2, j3, j4, 40)
+    activate Proto
+    Proto --> MPC : JSON-Payload (type: "move_joints")
+    deactivate Proto
+    MPC -> Unity : UDP sendto (Port 5005)
+    activate Unity
+    Unity -> UUB : Empfange Datagramm (Hintergrund-Thread)
+    activate UUB
+    UUB -> UUB : In _commandQueue einreihen
+    deactivate UUB
+end
+
+group Hardware-Pfad (Modus 'real' / 'both')
+    MPC -> PMC : send_angles([j1, j2, j3, j4], 40)
+end
+
+MPC --> Robot : fertig
+deactivate MPC
+Robot --> User : Rückkehr (Sofortige Weiterführung)
+deactivate Robot
+
+== Unity Hauptthread (Update-Zyklus) ==
+Unity -> UUB : CommandRunner() Coroutine
+activate UUB
+UUB -> UUB : Dequeue "move_joints"
+UUB -> Adapter : MoveJointsAsync(j1, j2, j3, j4, speed)
+activate Adapter
+Adapter -> Adapter : Setze Zielwinkel an Actuators (xDrive.target)
+Adapter --> UUB : Bewegung gestartet
+deactivate Adapter
+deactivate UUB
+deactivate Unity
+
+@enduml
+----
+
+==== Ablaufbeschreibung:
+1. **Validierung & Clamping:** Der Controller begrenzt alle vier Gelenkwinkel auf die physikalischen Grenzen und speichert die Werte im lokalen Zustand `_sim_angles`.
+2. **Protokollerstellung:** `protocol.build_move_msg()` generiert ein JSON-Datagramm mit `type: "move_joints"`.
+3. **Paralleler Versand:** Die Nachricht wird via UDP an Unity gesendet und gleichzeitig über `pymycobot.send_angles()` an die Hardware übertragen.
+4. **Ausführung in Unity:** Die `UnityUdpBridge` reiht das Paket ein. Der `CommandRunner` übergibt die Werte an `MoveJointsAsync`, welche die Gelenkaktuatoren kontinuierlich auf die Zielposition führt.
+
+=== Szenario 3: Synchrone Gelenkbewegung (`sync_move_joints`)
+
+Dieses Szenario beschreibt eine blockierende Gelenkbewegung. Die Ausführung kehrt erst zum Aufrufer zurück, wenn der Zielzustand erreicht ist.
+
+[plantuml, target="diagram-runtime-move-sync", format="png"]
+----
+@startuml
+actor "Benutzer" as User
+participant "Robot" as Robot
+participant "MyPalletizerController" as MPC
+participant "pymycobot" as PMC
+database "Unity Simulation" as Unity
+participant "UnityUdpBridge" as UUB
+participant "MyPalletizerArticulationAdapter" as Adapter
+
+User -> Robot : sync_move_joints(j1, j2, j3, j4, speed=40)
+activate Robot
+Robot -> MPC : sync_move_joints(...)
+activate MPC
+
+MPC -> MPC : _clamp() & _sim_angles aktualisieren
+
+group Simulations-Pfad (UDP Port 5005)
+    MPC -> Unity : UDP sendto (type: "sync_move_joints")
+    activate Unity
+    Unity -> UUB : Enqueue in _commandQueue
+end
+
+group Hardware-Pfad (Serial)
+    MPC -> PMC : sync_send_angles([j1, j2, j3, j4], 40)
+    note over MPC, PMC : Blockiert im Python-Thread,\nbis Hardware am Ziel ist
+end
+
+MPC --> Robot : Hardware-Bewegung abgeschlossen
+deactivate MPC
+Robot --> User : Rückkehr nach Zielerreichung
+deactivate Robot
+
+== Synchrone Abwicklung in Unity ==
+Unity -> UUB : CommandRunner()
+activate UUB
+UUB -> UUB : Dequeue "sync_move_joints"
+UUB -> Adapter : yield return MoveJointsSync(j1..j4, speed)
+activate Adapter
+loop Bis alle Gelenke innerhalb epsDeg (0.5°)
+    Adapter -> Adapter : WaitForFixedUpdate()
+end
+Adapter --> UUB : Zielposition von allen Achsen erreicht
+deactivate Adapter
+UUB --> Unity : Nächster Queue-Befehl wird freigegeben
+deactivate UUB
+deactivate Unity
+
+@enduml
+----
+
+==== Ablaufbeschreibung:
+1. **Hardware-Synchronisation:** Auf Hardwareseite nutzt der Controller `sync_send_angles()`, wodurch der aufrufende Python-Thread blockiert, bis die Roboter-Servos die Endposition eingenommen haben.
+2. **Simulations-Synchronisation:** In Unity blockiert `yield return adapter.MoveJointsSync(...)` den `CommandRunner` so lange, bis alle vier `ArticulationBody`-Gelenke innerhalb des Schwellenwerts (`epsDeg = 0.5°`) liegen. Nachfolgende Simulationskommandos werden erst danach ausgeführt.
+
+=== Szenario 4: Dynamisches Objektspawnen (`World.spawn`)
+
+Dieses Szenario zeigt das Erzeugen und Konfigurieren eines dynamischen 3D-Objekts in der Simulation.
+
+[plantuml, target="diagram-runtime-spawn", format="png"]
+----
+@startuml
+actor "Benutzer" as User
+participant "World" as World
+participant "protocol" as Proto
+database "Unity Simulation" as Unity
+participant "WorldUdpBridge\n(Port 5006)" as WUB
+participant "WorldSpawnManager" as WSM
+
+User -> World : spawn(Box("cube1", position=(0.1, 0.2, 0.1), scale=(0.05, 0.05, 0.05)))
+activate World
+
+World -> World : _validate_object(obj) (Prüfe Name, Vektoren, Skalierung > 0)
+World -> Proto : build_spawn_msg("box", "cube1", ...)
+activate Proto
+Proto --> World : JSON-Payload (type: "spawn")
+deactivate Proto
+
+World -> Unity : UDP sendto (Port 5006)
+activate Unity
+WUB -> WUB : Receive (Hintergrund) -> Enqueue in _messageQueue
+
+World --> User : Befehl erfolgreich versendet
+deactivate World
+
+== Unity Hauptthread (Update-Frame) ==
+Unity -> WUB : Update()
+activate WUB
+WUB -> WUB : Dequeue WorldMessage
+WUB -> WSM : HandleMessage(msg)
+activate WSM
+
+WSM -> WSM : GetPrefabByType("box")
+WSM -> Unity : Instantiate(boxPrefab, pos, rot)
+activate Unity
+Unity --> WSM : GameObject instanziiert
+deactivate Unity
+
+WSM -> WSM : Rigidbody hinzufügen (mass=0.05, useGravity=true)
+WSM -> WSM : GrabbableObject-Komponente anfügen
+WSM -> WSM : Skalierung & Farbe (Material) anwenden
+WSM -> WSM : In _spawnedObjects["cube1"] registrieren
+
+WSM --> WUB : fertig
+deactivate WSM
+deactivate WUB
+deactivate Unity
+
+@enduml
+----
+
+==== Ablaufbeschreibung:
+1. **Validierung in Python:** `_validate_object()` stellt sicher, dass der Objektname existiert, alle Vektoren 3D-Koordinaten aufweisen und Skalierungswerte positiv sind.
+2. **Netzwerkübertragung:** Die Nachricht wird über Port `5006` gesendet und von der `WorldUdpBridge` empfangen.
+3. **Instanziierung in Unity:** Der `WorldSpawnManager` instanziiert das passende Prefab, fügt Physikkomponenten (`Rigidbody`, `GrabbableObject`) hinzu, passt Geometrie und Farbe an und registriert das Objekt für spätere `delete`- oder `clear`-Operationen.
+
+=== Szenario 5: Endeffektor-Steuerung (Vakuumpumpe einschalten)
+
+Dieses Szenario zeigt das Aktivieren eines Werkzeugs und die physikalische Manipulation eines Objekts in der Simulationsumgebung.
+
+[plantuml, target="diagram-runtime-pump", format="png"]
+----
+@startuml
+actor "Benutzer" as User
+participant "Robot" as Robot
+participant "MyPalletizerController" as MPC
+participant "pymycobot" as PMC
+database "Unity Simulation" as Unity
+participant "UnityUdpBridge" as UUB
+participant "RobotToolManager" as RTM
+participant "SuctionPumpController" as SPC
+
+User -> Robot : pump_on()
+activate Robot
+
+Robot -> MPC : pump_on()
+activate MPC
+
+group Simulations-Pfad (UDP Port 5005)
+    MPC -> Unity : UDP sendto (type: "pump", enabled: true)
+    activate Unity
+    Unity -> UUB : Enqueue in _commandQueue
+end
+
+group Hardware-Pfad (Serial)
+    MPC -> PMC : set_basic_output(2, 0) (Relais 1 aktivieren)
+    MPC -> PMC : set_basic_output(5, 0) (Relais 2 aktivieren)
+end
+
+MPC --> Robot : fertig
+deactivate MPC
+Robot --> User : Werkzeug aktiviert
+deactivate Robot
+
+== Ausführung in Unity ==
+Unity -> UUB : CommandRunner()
+activate UUB
+UUB -> UUB : Dequeue "pump" (enabled=true)
+UUB -> RTM : SetPump(true)
+activate RTM
+RTM -> SPC : PumpOn()
+activate SPC
+
+SPC -> SPC : Setze Visuals (pumpVisualOn aktiv)
+SPC -> SPC : OverlapSphere(attachPoint, suctionRadius)
+alt GrabbableObject im Erfassungsbereich gefunden
+    SPC -> SPC : obj.AttachTo(attachPoint)
+    note over SPC : Objekt wird hierarchisch fixiert\nund bewegt sich mit dem Arm
+end
+
+SPC --> RTM : fertig
+deactivate SPC
+RTM --> UUB : fertig
+deactivate RTM
+deactivate UUB
+deactivate Unity
+
+@enduml
+----
+
+==== Ablaufbeschreibung:
+1. **Hardware-Ansteuerung:** Der Controller schaltet die digitalen Ausgänge (Pins 2 und 5) des Roboters auf Low (`0`), was die physischen Relais der Vakuumpumpe einschaltet.
+2. **Simulations-Ansteuerung:** Ein UDP-Paket vom Typ `"pump"` mit `enabled: true` wird an Port `5005` übermittelt.
+3. **Greiflogik in Unity:** Der `SuctionPumpController` aktiviert die optische Rückmeldung und sucht über `Physics.OverlapSphere` nach Objekten mit der Komponente `GrabbableObject`. Befindet sich ein Objekt im Saugbereich, wird dieses über `AttachTo()` kinematisch an den Saugkopf gekoppelt.

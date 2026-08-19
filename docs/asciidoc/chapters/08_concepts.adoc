@@ -3,193 +3,143 @@ ifndef::imagesdir[:imagesdir: ../images]
 [[section-concepts]]
 == Cross-cutting Concepts
 
+In diesem Kapitel werden die querschnittlichen Entwürfe, Architekturmuster und Implementierungsprinzipien beschrieben, die über mehrere Komponenten und Schichten hinweg wirken.
 
+=== Simulations- und Kinematikkonzept
 
-In diesem Kapitel werden Konzepte beschrieben, die in mehreren Teilen des Systems verwendet werden.
-Diese Konzepte betreffen nicht nur einzelne Bausteine, sondern prägen die Architektur über mehrere Schichten hinweg.
+Die Kinematik des MyPalletizer 260 M5 wird in Unity über spezialisierte `ArticulationBody`-Komponenten abgebildet. Im Gegensatz zu klassischen `Rigidbody`-Ketten ermöglichen Articulation Bodies eine hochstabile und physikalisch exakte Berechnung geschlossener und serieller Mehrkörpersysteme ohne Gelenkdrift.
 
-=== Simulationskonzept
+image::Joints.png[align=center, width=80%]
 
-Die Simulation des Roboters wird in Unity umgesetzt. Der Roboter besteht aus mehreren miteinander verbundenen Gelenken.
-Dadurch bewegen sich untergeordnete Bauteile mit, wenn ein übergeordnetes Gelenk bewegt wird.
-Beispielsweise bewegt sich ein nachgelagertes Gelenk wie `J3` mit, wenn ein vorgelagertes Gelenk wie `J2` gedreht wird.
+* **Gelenkhierarchie:** Der Roboterarm besteht aus einer hierarchischen Kette von vier Drehgelenken (`J1` bis `J4`). Eine Drehung von `J2` (Schulter) führt physikalisch korrekt dazu, dass alle nachgelagerten Glieder (`J3`, `J4` und das Werkzeug) mitbewegt werden.
+* **Winkelinterpolation:** Der `ArticulationJointActuator` berechnet die erforderliche Schrittweite im `FixedUpdate`-Zyklus und führt das Gelenk über die Unity-Eigenschaft `xDrive.target` flüssig an die Zielposition.
+* **Palettier-Mechanik (`GripperDownConstraint`):** Bei realen Palettierrobotern sorgt ein mechanisches Parallelogrammgestänge dafür, dass der Werkzeugkopf stets exakt nach unten ausgerichtet bleibt. In Unity wird dies im `LateUpdate`-Schritt durch die Komponente `GripperDownConstraint` rechnerisch gelöst, wodurch der Greifer unabhängig vom Armwinkel stabil vertikal bleibt.
 
-image::Joints.png[]
+=== Kommunikations- und Protokollkonzept
 
-Die Trennung in einzelne Gelenke ermöglicht es, Bewegungsbefehle aus der Python-Anwendung direkt auf die simulierte Roboterstruktur abzubilden.
-Zielwinkel für die einzelnen Achsen können unabhängig verarbeitet und in der Simulation dargestellt werden.
+Die Kommunikation zwischen Python und Unity basiert auf verbindungslosen UDP-Datagrammen mit UTF-8-kodierten JSON-Payloads.
 
-Die Simulation verwendet dabei ein vereinfachtes Modell des realen Roboters.
-Sie soll ein plausibles und nachvollziehbares Verhalten zeigen, ist jedoch keine vollständig physikalisch exakte Nachbildung.
-Abweichungen können insbesondere durch vereinfachte Modelle, CAD-Abweichungen oder Unterschiede in der physikalischen Simulation entstehen.
+* **Porttrennung:** 
+  ** Port `5005` (Roboterkanal): Hochfrequente Gelenkwinkel, LED-Farben und Werkzeugbefehle.
+  ** Port `5006` (Weltkanal): Diskrete administrative Szenenkommandos (`spawn`, `delete`, `clear`).
+* **Protokollstruktur:** Jede Nachricht besitzt ein einheitliches Wurzelschema:
++
+[source,json]
+----
+{
+  "v": 1,
+  "type": "<command_name>",
+  "...": "<parameters>"
+}
+----
+* **Zustandsbasierte Idempotenz:** Bewegungsnachrichten übertragen stets die absoluten Winkel aller vier Achsen. Geht ein UDP-Paket über das Netzwerk verloren, korrigiert das nachfolgende Paket die Pose unverzüglich, ohne dass kumulative Fehler entstehen.
 
-=== Kommunikationskonzept
+=== Threading- und Synchronisationskonzept in Unity
 
-Die Kommunikation zwischen Python und Unity basiert auf UDP und JSON.
-Python erzeugt strukturierte JSON-Nachrichten und sendet diese an die Unity-Simulation.
+Unity unterstützt Zugriffe auf Szenenobjekte und Physikkomponenten ausschliesslich aus dem Hauptthread (*Unity Main Thread*). Netzwerkaufrufe dürfen den Rendering-Loop jedoch nicht blockieren.
 
-Dabei werden zwei Kommunikationskanäle unterschieden:
-
-[cols="1,1,2", options="header"]
-|===
-| Kanal | Port | Zweck
-
-| **Roboterkanal**
-| `5005`
-| Überträgt Roboterbefehle wie Gelenkbewegungen, Werkzeugsteuerung, Pumpensteuerung und LED-Befehle.
-
-| **Weltkanal**
-| `5006`
-| Überträgt Weltbefehle wie `spawn`, `delete`, `clear` und das Laden von Szenarien.
-
-|===
-
-Die Trennung der Kanäle sorgt dafür, dass häufige Roboterbefehle nicht mit selteneren Weltbefehlen vermischt werden.
-Dadurch bleibt die Kommunikation übersichtlicher und leichter wartbar.
-
-Die Nachrichten enthalten immer eine Protokollversion `v` und ein Feld `type`.
-Dadurch kann Unity erkennen, welche Art von Befehl verarbeitet werden soll.
-
-=== Betriebsartenkonzept
-
-Das System unterstützt drei Betriebsarten:
-
-[cols="1,2", options="header"]
-|===
-| Modus | Beschreibung
-
-| **`virtual`**
-| Befehle werden nur an die Unity-Simulation gesendet.
-Dieser Modus eignet sich für Entwicklung und Tests ohne reale Hardware.
-
-| **`real`**
-| Befehle werden nur an den realen MyPalletizer 260 M5 gesendet.
-Die Kommunikation erfolgt über `pymycobot` und USB/Serial.
-
-| **`both`**
-| Befehle werden sowohl an die Simulation als auch an die reale Hardware gesendet.
-Dieser Modus eignet sich für Demonstrationen und den Vergleich zwischen simuliertem und realem Verhalten.
-
-|===
-
-Der Benutzer arbeitet in allen Betriebsarten mit derselben Python-API.
-Die Entscheidung, wohin ein Befehl gesendet wird, erfolgt intern im `MyPalletizerController`.
-
-=== Zustandskonzept
-
-Im virtuellen Betrieb speichert die Python-Seite den zuletzt gesendeten Soll-Zustand der Gelenke.
-Dieser Zustand wird in `_sim_angles` verwaltet und dient dazu, auch ohne reale Hardware sinnvolle Werte für `get_angles()` zurückgeben zu können.
-
-Dabei handelt es sich nicht um einen gemessenen Ist-Zustand aus Unity, sondern um den zuletzt gesetzten Zielzustand.
-Das ist wichtig, da aktuell kein vollständiger Rückkanal aus der Simulation existiert.
-
-Für die reale Hardware kann der Zustand über `pymycobot` vom Roboter abgefragt werden, sofern die entsprechende Funktion verfügbar ist.
-Im Modus `both` können Simulation und Hardware zeitweise voneinander abweichen, weil sie nicht über einen gemeinsamen Rückkanal synchronisiert werden.
-
-=== End-Effektor-Konzept
-
-Der Roboter unterstützt unterschiedliche Werkzeuge, insbesondere Greifer und Pumpe.
-Diese Werkzeuge können über die Python-API ausgewählt und in der Simulation nachgebildet werden.
-
-[plantuml, target="diagram-end-effector-concept", format="png"]
+[plantuml, target="diagram-threading-concept", format="png"]
 ----
 @startuml
-[*] --> Werkzeug_waehlen
-Werkzeug_waehlen --> Greifer : set_end_effector("gripper")
-Werkzeug_waehlen --> Pumpe : set_end_effector("pump")
+skinparam activityFontSize 12
 
-Greifer --> Greifer_Aktion : open / close
-Pumpe --> Pumpe_Aktion : on / off
+|Hintergrund-Thread (UdpClient)|
+start
+:Empfange UDP-Byte-Array;
+:Deserialisiere JSON zu RobotCommand;
+:Lock(_lock);
+:Queue.Enqueue(cmd);
+:Unlock(_lock);
+detach
+
+|Unity Hauptthread (Coroutine CommandRunner)|
+start
+repeat
+    :Lock(_lock);
+    if (Queue nicht leer?) then (ja)
+        :cmd = Queue.Dequeue();
+        :Unlock(_lock);
+        if (cmd.type == "sync_move_joints") then (synchron)
+            :yield return adapter.MoveJointsSync(...);
+        else (asynchron / tool)
+            :adapter.MoveJointsAsync(...) bzw. Tool-Aktion;
+        endif
+    else (nein)
+        :Unlock(_lock);
+        :yield return null;
+    endif
+repeat while (Applikation läuft)
+stop
 @enduml
 ----
 
-Dieses Konzept sorgt dafür, dass verschiedene Werkzeugarten über dieselbe Schnittstelle angesprochen werden können.
-Der Benutzer muss nicht wissen, welche Unity-Komponente oder Hardwarefunktion intern verwendet wird.
+* **Entkopplung:** Eintreffende UDP-Pakete werden in einem separaten Thread empfangen und thread-sicher in die Warteschlange eingereiht.
+* **Coroutinen-Abarbeitung:** Der `CommandRunner` arbeitet die Befehle im Unity-Frame-Zyklus ab. Bei synchronen Bewegungen (`sync_move_joints`) pausiert die Coroutine mit `yield return`, bis alle Gelenke innerhalb einer Toleranz von `0.5°` am Ziel sind.
 
-In der Simulation werden Werkzeugbefehle durch spezialisierte Komponenten verarbeitet:
+=== Zustands- und Telemetriekonzept
 
-* `RobotToolManager` koordiniert die Werkzeugauswahl.
-* `SimpleGripperController` bildet das Verhalten des Greifers nach.
-* `SuctionPumpController` bildet das Verhalten der Vakuumpumpe nach.
+Das System unterscheidet zwischen simuliertem Soll-Zustand und physikalischem Hardware-Ist-Zustand:
 
-=== Objekt- und Szenarienkonzept
+* **Modus `virtual`:** Der `MyPalletizerController` speichert die zuletzt gesetzten Winkel im internen Array `_sim_angles`. Die Methode `get_angles()` gibt diese Werte unmittelbar zurück. Dadurch arbeitet die API auch ohne Netzwerk-Rückkanal deterministisch und extrem schnell.
+* **Modus `real`:** `get_angles()` liest die echten Winkelwerte über das serielle Protokoll von den Servos des Roboters aus.
+* **Modus `both`:** `get_angles()` liefert beide Datensätze formatiert zurück (`Real - j1..j4` und `Sim - j1..j4`), was einen direkten Soll-Ist-Vergleich im Terminal erlaubt.
 
-Für die Simulationswelt werden einfache Objekte wie Boxen, Kugeln oder Zylinder verwendet.
-Diese können über die Python-Seite erstellt und in Unity dargestellt werden.
+=== Endeffektor- und Greifkonzept
 
-Objekte enthalten typischerweise folgende Eigenschaften:
+Die Abstraktion verschiedener Werkzeuge erfolgt über ein einheitliches Endeffektormodell:
 
-* Name
-* Objekttyp
-* Position
-* Rotation
-* Skalierung
-* Farbe
+[plantuml, target="diagram-endeffector-concept", format="png"]
+----
+@startuml
+skinparam state {
+    BackgroundColor White
+    BorderColor Black
+}
 
-Objekte werden über ihren Namen angesprochen.
-So können sie später gezielt gelöscht oder verändert werden.
+[*] --> GripperAktiv : set_end_effector("gripper")
+[*] --> PumpAktiv : set_end_effector("pump")
 
-Zusätzlich unterstützt das System vordefinierte Szenarien, sogenannte *Presets*.
-Diese ermöglichen einen einfacheren Einstieg in die Nutzung und sorgen für reproduzierbare Testszenarien.
-Beispiele für Presets sind `empty`, `three_blocks`, `pick_and_place_basic` und `sorting_task`.
+state GripperAktiv {
+    [*] --> Offen
+    Offen --> Geschlossen : set_gripper_state(1) [OverlapSphere -> AttachTo]
+    Geschlossen --> Offen : set_gripper_state(0) [Detach]
+}
 
-=== Threading-Konzept in Unity
+state PumpAktiv {
+    [*] --> PumpOff
+    PumpOff --> PumpOn : pump_on() [OverlapSphere -> AttachTo]
+    PumpOn --> PumpOff : pump_off() [Detach]
+}
+@enduml
+----
 
-UDP-Nachrichten werden in Unity nicht direkt auf Unity-Objekte angewendet.
-Stattdessen werden eingehende Nachrichten zunächst empfangen und in eine Queue gelegt.
+* **Sichtbarkeitssteuerung:** Der `RobotToolManager` aktiviert das entsprechende 3D-Modell (`gripperTool` oder `pumpTool`) und deaktiviert das andere.
+* **Physikalische Interaktion:** Beide Werkzeuge nutzen `Physics.OverlapSphere`, um manipulierbare Objekte mit der Komponente `GrabbableObject` im Arbeitsradius zu identifizieren.
+* **Kinematische Kopplung:** Ein gegriffenes oder angesaugtes Objekt wird hierarchisch an den Befestigungspunkt (*Attach Point*) gekoppelt (`obj.AttachTo(attachPoint)`). Bei `Release()` bzw. `PumpOff()` wird die Verbindung gelöst und die Schwerkraft wieder aktiviert.
 
-Die eigentliche Verarbeitung erfolgt anschliessend im Unity-Hauptthread.
-Dieses Vorgehen ist wichtig, da Unity-Objekte nicht sicher aus beliebigen Hintergrund-Threads verändert werden sollten.
+=== Welt- und Szenarienkonzept
 
-Dieses Konzept betrifft insbesondere:
+Die Verwaltung der Simulationsumgebung ist vollständig von der Roboterkinematik getrennt:
 
-* `UnityUdpBridge`
-* `WorldUdpBridge`
-* `MyPalletizerArticulationAdapter`
-* `WorldSpawnManager`
+* **Geometrische Grundkörper:** Über die Klassen `Box`, `Sphere` und `Cylinder` können dynamische oder statische Objekte mit individueller Position, Rotation, Skalierung und RGB-Farbe platziert werden.
+* **Dynamische Komponenten:** Der `WorldSpawnManager` stattet gespawnte Objekte automatisch mit `Rigidbody`, Kollisionsgeometrie und `GrabbableObject` aus.
+* **Vordefinierte Szenarien (Presets):** Über `World.load_preset()` können standardisierte Übungsaufbauten (`three_blocks`, `pick_and_place_basic`, `sorting_task`) reproduzierbar mit einem einzigen Aufruf in die Szene geladen werden.
 
-Dadurch bleibt die Verarbeitung stabiler und Threading-Probleme werden vermieden.
+=== Validierungs- und Sicherheitskonzept
 
-=== Fehlerbehandlung und Validierung
+Das System verfolgt ein striktes Schutzkonzept gegen Fehlbedienung und Hardwareschäden:
 
-Ein weiteres wichtiges Konzept ist die Validierung von Eingaben vor der Ausführung.
+1. **Parameterprüfung (Fail-Fast):** Fehlerhafte Betriebsmodi, fehlende serielle Ports oder ungültige 3D-Vektoren lösen sofort aussagekräftige Ausnahmen (`InvalidConfigError`) aus.
+2. **Winkelbegrenzung (Software Clamping):** Vor jeder Weiterleitung werden die Gelenkwinkel auf die exakten Hardwarespezifikationen geklemmt (`J1: -160..160°`, `J2: 0..90°`, `J3: -92..60°`, `J4: -360..360°`).
+3. **Dynamik- und Farbschutz:** Geschwindigkeiten werden auf `1..100` und LED-Werte auf `0..255` begrenzt.
 
-Dazu gehören unter anderem:
+=== Test- und Qualitätssicherungskonzept
 
-* Begrenzung von Gelenkwinkeln
-* Begrenzung der Geschwindigkeit
-* Begrenzung von RGB-Werten
-* Prüfung von Objektparametern
-* Prüfung der Betriebsart
-* Fehlerbehandlung bei fehlender oder ungültiger Konfiguration
+* **Python Unit Tests:** Automatisierte Tests mit `pytest` validieren die Protokollerstellung (`test_protocol.py`), das Verhalten der Roboter-Fassade (`test_robot.py`) sowie die Szenenoperationen (`test_world.py`) unter Verwendung von Mocks für Sockets und serielle Treiber.
+* **Unity EditMode Tests:** C#-NUnit-Tests (`SerializationTests`, `ComponentTests`) prüfen die Deserialisierung von JSON-Strings und das Vorhandensein erforderlicher Komponenten im Unity-Projekt.
+* **Manuelle Systemtests:** Umfassende End-to-End-Testszenarien (z. B. Pick-and-Place-Zyklen) sind im GitHub-Wiki dokumentiert und validieren das Gesamtzusammenspiel zwischen Python und Unity.
 
-Dadurch werden fehlerhafte Befehle möglichst früh erkannt und unzulässige Zustände vermieden.
-Beispielsweise sollte im Modus `real` oder `both` ein gültiger serieller Port angegeben sein, da sonst keine Verbindung zur Hardware aufgebaut werden kann.
+=== Usability und Developer Experience
 
-=== Testkonzept
-
-Das Testkonzept umfasst sowohl Unit-Tests für die Python-API als auch Tests für Unity-Komponenten.
-Dabei werden typische Anwendungsfälle, Grenzfälle und Fehlerfälle abgedeckt, um die Stabilität und Zuverlässigkeit des Systems sicherzustellen.
-
-Zusätzlich wurden Systemtests definiert und manuell ausgeführt.
-Diese Tests decken die Interaktion zwischen Python und Unity ab und prüfen, ob die Kommunikation korrekt funktioniert und die Simulation wie erwartet reagiert.
-
-Die Systemtests wurden im GitHub-Wiki dokumentiert, damit sie auch von anderen Benutzern nachvollzogen werden können:
-
-https://github.com/Stonehouse1703/DigitalTwin-for-MyPalletizer-260-M5-UnityVersion/wiki/system-tests[Systemtests im GitHub-Wiki]
-
-=== Sicherheitskonzept
-
-Die Simulation dient auch als Sicherheitsmechanismus.
-Bewegungsabläufe können zunächst virtuell getestet werden, bevor sie auf dem realen Roboter ausgeführt werden.
-Dadurch sinkt das Risiko, die Hardware durch falsche Winkel, ungeeignete Bewegungsabläufe oder fehlerhafte Skripte zu beschädigen.
-
-Die Sicherheit wird zusätzlich durch Validierungen unterstützt:
-
-* Gelenkwinkel werden begrenzt.
-* Geschwindigkeiten werden begrenzt.
-* Ungültige Objektparameter werden erkannt.
-* Die Hardwareansteuerung ist gekapselt.
-
-Trotzdem ersetzt die Simulation keine vollständige Sicherheitsprüfung am realen Roboter.
-Vor der Ausführung auf der Hardware muss weiterhin geprüft werden, ob der Arbeitsbereich frei ist und keine Kollisionen auftreten können.
+* **Kontextmanager-Unterstützung:** Die Klassen `Robot` und `World` implementieren `__enter__` und `__exit__`. Dadurch werden Netzwerk-Sockets und serielle Hardwareports bei Skriptende oder im Fehlerfall automatisch geschlossen (`with Robot(mode=RobotMode.VIRTUAL) as robot:`).
+* **Pythonic API & Type Hinting:** Durchgängige Typannotationen und Enums (`RobotMode`, `EndEffector`) erleichtern die Codevervollständigung in modernen IDEs.
