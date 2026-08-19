@@ -3,115 +3,66 @@ ifndef::imagesdir[:imagesdir: ../images]
 [[section-deployment-view]]
 == Deployment View
 
-Die Verteilungssicht beschreibt die physische Zielumgebung, die ausführenden Hardwareknoten, die Softwarebausteine sowie die verwendeten Netzwerk- und Verbindungskanäle.
+Die Verteilungssicht beschreibt die physischen Hardwareknoten, die Software-Laufzeitumgebungen und die Netzwerkverbindungen des Gesamtsystems.
 
-=== Infrastruktur und Verteilungsdiagramm
+=== Infrastruktur- und Verteilungsdiagramm
 
-Das Gesamtsystem wird primär auf einem lokalen Arbeitsplatzrechner (*Host-PC*) ausgeführt. Optional ist der physische Roboterarm *MyPalletizer 260 M5* über eine serielle USB-Verbindung angeschlossen.
+Das System wird auf einem lokalen Arbeitsplatzrechner (*Host-PC*) ausgeführt. Optional ist der physische Roboter *MyPalletizer 260 M5* über eine serielle USB-Verbindung angeschlossen.
 
-[plantuml, target="diagram-deployment-view", format="png"]
-----
-@startuml
-skinparam componentStyle rectangle
+image::07_deployment.png[align=center, width=80%]
 
-node "Host-PC\n(Windows / Linux / macOS)" as HostPC {
-    
-    artifact "Python-Laufzeitumgebung\n(Python >= 3.12)" as PyRuntime {
-        component "Benutzerskript\n(user_script.py)" as UserScript
-        component "mypalletizer API\n(Python Package)" as PyPkg
-        component "pymycobot\n(Treiberbibliothek)" as PyMyCobotDriver
-    }
-    
-    artifact "Unity-Laufzeitumgebung\n(Standalone Executable / Editor)" as UnityRuntime {
-        component "Digital Twin Simulation\n(Unity 3D Engine)" as UnityApp
-    }
-}
-
-node "MyPalletizer 260 M5\n(Physische Hardware)" as HardwareNode {
-    component "M5Stack Basic Controller\n(Firmware 115200 Baud)" as M5Controller
-    component "4x Servomotoren (J1..J4)\n+ Endeffektoren (Greifer/Pumpe)" as Servos
-}
-
-UserScript --> PyPkg : Lokaler Aufruf
-PyPkg --> PyMyCobotDriver : Interner Aufruf
-
-PyPkg --> UnityApp : UDP / JSON (Port 5005)\nRoboterkanal (localhost)
-PyPkg --> UnityApp : UDP / JSON (Port 5006)\nWeltkanal (localhost)
-
-PyMyCobotDriver --> M5Controller : USB / Serial (115200 Baud)\nCOMx oder /dev/ttyUSBx
-M5Controller --> Servos : Interne Bus-Steuerung
-
-@enduml
-----
-
-=== Knoten und Infrastrukturelemente
+=== Knoten und Softwareartefakte
 
 [cols="1,1,3", options="header"]
 |===
-| Knoten / Element | Betriebssystem / Typ | Technische Beschreibung und Voraussetzungen
+| Knoten / Laufzeit | Typ | Enthaltene Komponenten und Voraussetzungen
 
 | **Host-PC**
-| Windows 10/11, Linux (Ubuntu 22.04+), macOS (12+)
-| Standard-Entwicklungsrechner. Führt sowohl die Python-Steuerung als auch die Unity-Simulationsanwendung aus.
+| Physischer Rechner
+| Standard-Entwicklungsrechner unter Windows (10/11), Linux (Ubuntu 22.04+) oder macOS (12+).
 
-| **Python-Laufzeitumgebung**
-| Python 3.12 oder neuer
-| Verwaltet das installierte Paket `mypalletizer-api` sowie die Abhängigkeiten `numpy` und `pymycobot`.
+| **Python Runtime**
+| Software-Umgebung (>= 3.12)
+| Führt das Benutzerskript, das installierte Paket `mypalletizer-api` sowie die Abhängigkeiten `numpy` und `pymycobot` aus.
 
-| **Unity-Laufzeitumgebung**
-| Standalone-Build oder Unity Editor
-| Führt die vorkompilierte Simulationsanwendung aus. Benötigt Unterstützung für OpenGL / DirectX / Metal sowie freie lokale UDP-Ports.
+| **Unity Runtime**
+| Standalone-Build / Unity Editor
+| Führt die kompilierte Simulationsanwendung aus; nutzt OpenGL/DirectX/Metal für das Rendering und PhysX für die Gelenkberechnung.
 
 | **MyPalletizer 260 M5**
-| Embedded System (ESP32 / M5Stack)
-| Physischer 4-Achs-Roboter mit interner Echtzeit-Servosteuerung und Relais-Ausgängen für Werkzeuge.
+| Embedded Hardware (ESP32)
+| M5Stack-Controller mit integrierter Echtzeit-Servosteuerung und Relaisausgängen für Endeffektoren.
 |===
 
 === Kommunikationskanäle
 
 [cols="1,1,1,3", options="header"]
 |===
-| Kanal | Verbindung | Format / Baudrate | Zweck und Charakteristik
+| Kanal | Verbindung | Format / Baudrate | Zweck
 
 | **Roboterkanal**
-| UDP Socket (`127.0.0.1:5005`)
-| UTF-8 JSON Datagramme
-| Zeitkritische Übertragung von Gelenkwinkeln, LED-Farben und Werkzeugzuständen. Verbindungslos, latenzoptimiert.
+| UDP (`127.0.0.1:5005`)
+| UTF-8 JSON
+| Zeitkritische Übertragung von Gelenkwinkeln, LED-Farben und Werkzeugzuständen.
 
 | **Weltkanal**
-| UDP Socket (`127.0.0.1:5006`)
-| UTF-8 JSON Datagramme
-| Übertragung von administrativen Szenenkommandos (`spawn`, `delete`, `clear`). Getrennt vom Roboterkanal zur Vermeidung von Latenzspitzen.
+| UDP (`127.0.0.1:5006`)
+| UTF-8 JSON
+| Übertragung von Szenenkommandos (`spawn`, `delete`, `clear`).
 
 | **Hardware-Kanal**
-| USB-zu-Serial-Verbindung
+| USB-UART (Seriell)
 | 8N1, `115200` Baud
-| Übertragung von Steuerbefehlen an das M5Stack-Mainboard und Empfang von Gelenkwinkeln zur Telemetrie.
+| Bidirektionale Ansteuerung der physischen Servomotoren und Relais über `pymycobot`.
 |===
 
-=== Bereitstellungs- und Deployment-Szenarien
+=== Bereitstellungsvarianten
 
-Das System unterstützt drei typische Einsatzszenarien:
+* **Reine Simulation (`virtual`):** Python-Skript und Unity-Anwendung laufen auf demselben Rechner; kein Hardwareanschluss erforderlich. Ideal für Fernunterricht und algorithmische Tests.
+* **Hybrider Parallelbetrieb (`both`):** Python-Skript steuert zeitgleich die Unity-Simulation und den über USB verbundenen Roboter an. Dient dem direkten visuellen Soll-Ist-Vergleich.
+* **Reiner Hardwarebetrieb (`real`):** Python-Skript steuert ausschliesslich den physischen Roboter an; Unity muss nicht gestartet werden.
 
-1. **Reine Simulationsumgebung (`virtual`):**
-+
-* **Zielgruppe:** Studierende im Fernstudium, Entwickler ohne physischen Roboter.
-* **Komponenten:** Python-Skript und Unity Standalone Executable (oder Unity Editor) auf demselben Host-PC.
-* **Vorteil:** Komplett ortsunabhängig, kein Hardware-Setup erforderlich, kein Beschädigungsrisiko.
+=== Softwarepaketierung
 
-2. **Hybrider Parallelbetrieb (`both`):**
-+
-* **Zielgruppe:** Praktika an der HSLU, Validierung vor realen Produktionsabläufen.
-* **Komponenten:** Python-Skript, Unity-Simulation und physischer Roboterarm zeitgleich über USB verbunden.
-* **Vorteil:** Direkter visueller Echtzeitabgleich zwischen mathematischem Modell und realem Verhalten.
-
-3. **Reiner Hardwarebetrieb (`real`):**
-+
-* **Zielgruppe:** Finale Ausführung fertig getesteter Steuerprogramme auf der realen Hardware.
-* **Komponenten:** Python-Skript und MyPalletizer 260 M5 (Unity muss nicht gestartet sein).
-* **Vorteil:** Minimale Systemlast, da keine 3D-Engine gerendert werden muss.
-
-=== Softwareverteilung und Paketierung
-
-* **Python-Paket (`mypalletizer-api`):** Wird über `pyproject.toml` als standardisiertes Python-Wheel gebaut und kann via `pip install .` oder im Entwicklungsmodus (`pip install -e .`) installiert werden.
-* **Unity-Anwendung:** Wird über automatisierte GitHub Actions als eigenständige Standalone-Binary für Windows (`.exe`), Linux (`.x86_64`) und macOS (`.app`) erzeugt und als Release-Artefakt bereitgestellt.
+* **Python-Bibliothek:** Paketiert als Standard-Wheel via `pyproject.toml` (`pip install .`).
+* **Unity-Simulation:** Bereitstellung als eigenständige Standalone-Binaries für Windows (`.exe`), Linux (`.x86_64`) und macOS (`.app`) über automatisierte GitHub Actions.

@@ -1,0 +1,50 @@
+@startuml
+!include style.puml
+autonumber
+
+actor "Benutzer" as User
+participant "World" as World
+participant "protocol" as Proto
+database "Unity Simulation" as Unity
+participant "WorldUdpBridge\n(Port 5006)" as WUB
+participant "WorldSpawnManager" as WSM
+
+User -> World : spawn(Box("cube1", position=(0.1, 0.2, 0.1), scale=(0.05, 0.05, 0.05)))
+activate World
+
+World -> World : _validate_object(obj)
+World -> Proto : build_spawn_msg("box", "cube1", ...)
+activate Proto
+Proto --> World : JSON (type: "spawn")
+deactivate Proto
+
+World -> Unity : UDP sendto (Port 5006)
+activate Unity
+WUB -> WUB : _messageQueue.Enqueue(msg)
+
+World --> User : Befehl versendet
+deactivate World
+
+== Unity Hauptthread (Update-Frame) ==
+Unity -> WUB : Update()
+activate WUB
+WUB -> WUB : msg = _messageQueue.Dequeue()
+WUB -> WSM : HandleMessage(msg)
+activate WSM
+
+WSM -> WSM : prefab = GetPrefabByType("box")
+WSM -> Unity : Instantiate(prefab, pos, rot)
+activate Unity
+Unity --> WSM : GameObject instanziiert
+deactivate Unity
+
+WSM -> WSM : Rigidbody & GrabbableObject anhängen
+WSM -> WSM : Skalierung & Materialfarbe setzen
+WSM -> WSM : In _spawnedObjects["cube1"] registrieren
+
+WSM --> WUB : fertig
+deactivate WSM
+deactivate WUB
+deactivate Unity
+
+@enduml

@@ -1,0 +1,57 @@
+@startuml
+!include style.puml
+autonumber
+
+actor "Benutzer" as User
+participant "Robot" as Robot
+participant "MyPalletizerController" as MPC
+participant "protocol" as Proto
+participant "pymycobot" as PMC
+database "Unity Simulation" as Unity
+participant "UnityUdpBridge\n(Port 5005)" as UUB
+participant "MyPalletizerArticulationAdapter" as Adapter
+
+User -> Robot : send_angles(j1, j2, j3, j4, speed=40)
+activate Robot
+
+Robot -> MPC : send_angles(j1, j2, j3, j4, speed=40)
+activate MPC
+
+MPC -> MPC : _clamp() Limits j1..j4 & speed
+MPC -> MPC : _sim_angles = [j1, j2, j3, j4]
+
+group Simulations-Pfad (Modus 'virtual' / 'both')
+    MPC -> Proto : build_move_msg(j1, j2, j3, j4, speed)
+    activate Proto
+    Proto --> MPC : JSON (type: "move_joints")
+    deactivate Proto
+    MPC -> Unity : UDP sendto (Port 5005)
+    activate Unity
+    Unity -> UUB : Empfange Datagramm (Background Thread)
+    activate UUB
+    UUB -> UUB : _commandQueue.Enqueue(cmd)
+    deactivate UUB
+end
+
+group Hardware-Pfad (Modus 'real' / 'both')
+    MPC -> PMC : send_angles([j1, j2, j3, j4], speed)
+end
+
+MPC --> Robot : fertig
+deactivate MPC
+Robot --> User : Rückkehr (Nicht blockierend)
+deactivate Robot
+
+== Unity Hauptthread (Update-Zyklus) ==
+Unity -> UUB : CommandRunner()
+activate UUB
+UUB -> UUB : cmd = _commandQueue.Dequeue()
+UUB -> Adapter : MoveJointsAsync(j1, j2, j3, j4, speed)
+activate Adapter
+Adapter -> Adapter : Setze xDrive.target an Actuators J1..J4
+Adapter --> UUB : Bewegung läuft
+deactivate Adapter
+deactivate UUB
+deactivate Unity
+
+@enduml

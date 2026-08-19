@@ -1,0 +1,19 @@
+@startuml
+!include style.puml
+
+actor "Benutzer / Entwickler" as User
+
+rectangle "Digital Twin System\n(MyPalletizer Python API)" as DTS {
+}
+
+rectangle "Unity Simulation\n(3D-Visualisierung & Physik)" as Unity
+rectangle "MyPalletizer 260 M5\n(Physische Hardware)" as Hardware
+
+User -> DTS : Steuert Roboter & Welt\n(Python-Skripte)
+DTS -> Unity : Visualisiert Bewegungen\n& manipuliert Objekte
+DTS -> Hardware : Führt Aktionen physisch aus
+
+Unity .[#7F8C8D].> User : Visuelles 3D-Feedback
+Hardware .[#7F8C8D].> User : Reale Bewegung / Sensorik
+
+@enduml

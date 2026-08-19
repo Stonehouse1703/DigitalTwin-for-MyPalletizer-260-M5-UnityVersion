@@ -1,0 +1,31 @@
+@startuml
+!include style.puml
+
+node "Host-PC\n(Windows / Linux / macOS)" as HostPC {
+    
+    artifact "Python 3.12+ Runtime" as PyEnv {
+        component "User Application\n(user_script.py)" as App
+        component "mypalletizer API\n(Python Package)" as Pkg
+        component "pymycobot Driver\n(Hardware-Treiber)" as Driver
+    }
+    
+    artifact "Unity Standalone Application / Editor" as UnityEnv {
+        component "Unity 3D Simulation\n(C# Engine / PhysX)" as UnityApp
+    }
+}
+
+node "MyPalletizer 260 M5 (Hardware)" as HardwareNode {
+    component "M5Stack Basic Controller\n(ESP32 Firmware)" as Controller
+    component "4x Servos (J1..J4) &\nEndeffektoren (Pumpe/Greifer)" as Actuators
+}
+
+App --> Pkg : API-Methoden
+Pkg --> Driver : Interner Treiberaufruf
+
+Pkg --> UnityApp : UDP / JSON (127.0.0.1:5005)\nRoboterkanal
+Pkg --> UnityApp : UDP / JSON (127.0.0.1:5006)\nWeltkanal
+
+Driver --> Controller : USB / Serial (115200 Baud)\n/dev/ttyUSB* oder COM*
+Controller --> Actuators : Interne Bus-Signale
+
+@enduml

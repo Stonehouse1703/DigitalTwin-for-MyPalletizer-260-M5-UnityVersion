@@ -3,62 +3,66 @@ ifndef::imagesdir[:imagesdir: ../images]
 [[section-system-scope-and-context]]
 == Context and Scope
 
-In diesem Kapitel wird das System gegenüber externen Akteuren und angebundenen Nachbarsystemen abgegrenzt. Es werden die fachlichen Interaktionen (Business Context) sowie die konkreten technischen Schnittstellen, Übertragungsmedien und Protokolle (Technical Context) definiert.
+Dieses Kapitel grenzt das System gegenüber externen Akteuren und angebundenen Nachbarsystemen ab. Es definiert die fachlichen Interaktionsbeziehungen (*Business Context*) sowie die technischen Kommunikationswege und Protokolle (*Technical Context*).
 
 === Business Context
 
-Der fachliche Kontext beschreibt die Systemgrenzen aus Sicht der Anwender (Studierende, Dozierende, Robotik-Entwickler). Der Benutzer interagiert ausschliesslich mit der bereitgestellten Python-Bibliothek. Das System übernimmt die interne Ablaufsteuerung, die Validierung der Parameter sowie die Weiterleitung der Steuer- und Umgebungsbefehle an die Simulationsumgebung, die reale Roboterhardware oder an beide Zielsysteme gleichzeitig.
+Der fachliche Kontext beschreibt die Systemgrenzen aus der Anwenderperspektive. Der Benutzer steuert das Gesamtsystem ausschliesslich über die bereitgestellte Python-Bibliothek. Das System fungiert als Vermittler, validiert Parameter und leitet Aktionen je nach gewähltem Modus an die 3D-Simulation und/oder die physische Roboterhardware weiter.
 
-image::ContextDiagramm.png[align=center, width=80%]
+image::03_context_business.png[align=center, width=75%]
 
 [cols="1,2,2", options="header"]
 |===
-| Akteur / Nachbarsystem | Rolle und fachliche Aufgabe | Schnittstelle / Interaktion
+| Akteur / Nachbarsystem | Fachliche Rolle | Fachliche Ein- und Ausgaben
 
 | **Benutzer / Entwickler**
-| Erstellt Ablaufprogramme in Python, definiert Bewegungsabläufe und steuert Endeffektoren sowie Simulationsszenarien.
-| Ruft die Methoden der Klassen `Robot` und `World` auf. Erhält visuelles Feedback über die Simulation oder physische Rückmeldung durch den Roboter.
+| Schreibt Steuerungsskripte in Python; plant Bewegungsabläufe und Pick-and-Place-Szenarien.
+| *Eingabe:* Steuerbefehle (Winkel, Geschwindigkeiten, Werkzeugaktionen, Szenenobjekte). +
+*Ausgabe:* Visuelles Feedback in der Simulation und/oder physische Bewegung der Hardware.
 
 | **Digital Twin System (Python API)**
-| Kapselt die interne Ablauflogik, validiert Eingabewerte (Winkel, Geschwindigkeit, Farben), verwaltet den simulierten Zustand und leitet Befehle modusspezifisch weiter.
-| Zentrale Steuerungsinstanz; entkoppelt den Benutzercode von hardware- und netzwerkspezifischen Details.
+| Kapselt die interne Ablaufsteuerung, prüft Grenzwerte und steuert die Zielsysteme modusspezifisch an.
+| *Eingabe:* API-Methodenaufrufe des Benutzers. +
+*Ausgabe:* JSON-Datagramme an Unity; serielle Steuerpakete an die Hardware.
 
 | **Unity Simulation**
-| Visualisiert den Roboterarm, führt die physikalische Gelenkbewegung aus, simuliert Greif- und Saugvorgänge und verwaltet dynamisch erzeugte Umgebungsobjekte.
-| Empfängt Steuerdaten für Roboter und Welt; stellt das Verhalten in einer 3D-Szene in Echtzeit dar.
+| 3D-Echtzeit-Visualisierung von Kinematik, Werkzeugen und dynamischen Simulationskörpern.
+| *Eingabe:* UDP-Steuerkommandos. +
+*Ausgabe:* Grafische Darstellung der Bewegungen und physikalischen Greifvorgänge.
 
-| **MyPalletizer 260 M5 (Hardware)**
-| Führt die physischen Bewegungen und Werkzeugaktionen in der realen Welt aus.
-| Empfängt Gelenkwinkel und Steuerkommandos über die serielle Schnittstelle.
+| **MyPalletizer 260 M5**
+| Physischer Roboterarm zur realen Ausführung von Bewegungsabläufen.
+| *Eingabe:* Serielle Befehlspakete. +
+*Ausgabe:* Physische Gelenkbewegungen und Rückmeldung des aktuellen Hardwarezustands.
 |===
 
 === Technical Context
 
-Der technische Kontext definiert die konkreten Schnittstellen, Übertragungsmedien, Protokolle und Datenformate zwischen dem Python-Steuerungssystem und den angebundenen Systemen.
+Der technische Kontext definiert die konkreten Schnittstellen, Medien und Übertragungsprotokolle zwischen dem Python-Steuerungssystem und den Nachbarsystemen.
 
-image::TechnicalContext.png[align=center, width=85%]
+image::03_context_technical.png[align=center, width=80%]
 
 [cols="1,1,1,3", options="header"]
 |===
-| Schnittstelle | Übertragungsmedium | Protokoll / Format | Technische Beschreibung
+| Schnittstelle | Übertragungsmedium | Protokoll / Format | Technische Spezifikation
 
-| **Benutzerprogramm zu Python API**
+| **Benutzerskript -> Python API**
 | In-Process Funktionsaufruf
 | Python 3 API (Objektorientiert)
-| Direkter Methodenaufruf auf den Klassen `Robot` und `World` mit nativer Typisierung und Validierung.
+| Direkte Methodenaufrufe auf den Klassen `Robot` und `World` mit nativer Parameterübergabe und Typisierung.
 
-| **Python API zu Unity: Roboterkanal**
-| UDP Socket (`localhost`)
-| JSON über UDP (Port `5005`)
-| Überträgt Bewegungsbefehle (`move_joints`, `sync_move_joints`), LED-Farben (`led`) und Werkzeugbefehle (`set_end_effector`, `set_gripper_state`, `pump`) im UTF-8-JSON-Format.
+| **Python API -> Unity (Roboterkanal)**
+| UDP Socket (Localhost)
+| UTF-8 JSON, Port `5005`
+| Übertragung zeitkritischer Roboterkommandos (`move_joints`, `sync_move_joints`, `led`, `set_end_effector`, `set_gripper_state`, `pump`).
 
-| **Python API zu Unity: Weltkanal**
-| UDP Socket (`localhost`)
-| JSON über UDP (Port `5006`)
-| Überträgt Befehle zur Szenenverwaltung (`spawn`, `delete`, `clear`) inklusive geometrischer Daten (Position, Rotation, Skalierung, Farbe) im UTF-8-JSON-Format.
+| **Python API -> Unity (Weltkanal)**
+| UDP Socket (Localhost)
+| UTF-8 JSON, Port `5006`
+| Übertragung von Szenenverwaltungsbefehlen (`spawn`, `delete`, `clear`) inklusive 3D-Transformationsvektoren und Farbdaten.
 
-| **Python API zu MyPalletizer Hardware**
-| USB / Serial (Virtueller COM-Port / `/dev/ttyUSB*`)
-| Serielles Binärprotokoll (`pymycobot`), `115200` Baud
-| Sendet Gelenkwinkel (`send_angles`, `sync_send_angles`), Pin-Zustände für Relais (`set_basic_output`) und liest Hardware-Telemetrie (`get_angles`).
+| **Python API <-> MyPalletizer Hardware**
+| USB-UART (Serielle Schnittstelle)
+| 8N1, `115200` Baud (via `pymycobot`)
+| Bidirektionale Kommunikation: Senden von Zielwinkeln und Relaiszuständen; Auslesen von Sensor- und Gelenk-Telemetriedaten.
 |===

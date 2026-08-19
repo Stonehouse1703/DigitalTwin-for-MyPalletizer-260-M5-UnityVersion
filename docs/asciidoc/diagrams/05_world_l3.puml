@@ -1,0 +1,49 @@
+@startuml
+!include style.puml
+
+class World {
+    - ip: str
+    - udp_port: int
+    - sock: Optional[socket]
+    __
+    + spawn(obj: WorldObject)
+    + delete(name: str)
+    + clear()
+    + list_presets() : list[str]
+    + load_preset(name: str, clear_first: bool = True)
+    + close()
+    __
+    - _send_udp(payload: dict)
+    - _validate()
+    - _validate_object(obj: WorldObject)
+}
+
+abstract class WorldObject {
+    + object_type: str
+    + name: str
+    + position: tuple[float, float, float]
+    + rotation: tuple[float, float, float]
+    + scale: tuple[float, float, float]
+    + color: tuple[int, int, int]
+    + is_static: bool
+}
+
+class Box extends WorldObject
+class Sphere extends WorldObject
+class Cylinder extends WorldObject
+
+class protocol <<module>> {
+    + build_spawn_msg(...) : dict
+    + build_delete_msg(...) : dict
+    + build_clear_msg(...) : dict
+}
+
+class presets <<module>> {
+    + PRESETS: dict[str, list[WorldObject]]
+}
+
+World ..> WorldObject : Validiert & verarbeitet
+World ..> protocol : Nutzt Message Builder
+World ..> presets : Lädt Objektlisten
+
+@enduml

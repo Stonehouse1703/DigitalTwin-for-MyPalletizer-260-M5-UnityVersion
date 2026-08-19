@@ -3,56 +3,56 @@ ifndef::imagesdir[:imagesdir: ../images]
 [[section-design-decisions]]
 == Architecture Decisions
 
-Die folgenden Architectural Decision Records (ADRs) dokumentieren die wesentlichen architektonischen Richtungsentscheidungen, deren Begründung sowie die damit verbundenen Konsequenzen und Kompromisse.
+Die folgenden Architectural Decision Records (ADRs) dokumentieren die zentralen Richtungsentscheidungen, deren Begründung sowie die resultierenden Konsequenzen.
 
 === ADR-1: Einheitliche Python-API für Simulation und Hardware
 
 * **Status:** Akzeptiert
-* **Kontext:** Anwender sollen Steuerungsprogramme entwickeln können, ohne ihren Code beim Wechsel zwischen Simulation und physischer Hardware anpassen zu müssen.
-* **Entscheidung:** Die High-Level-Klassen `Robot` und `World` stellen eine einheitliche Fassade bereit. Die modusspezifische Verteilung (`virtual`, `real`, `both`) erfolgt transparent im `MyPalletizerController`.
+* **Kontext:** Steuerungsskripte sollen ohne Codeänderungen zwischen Simulation und physischer Hardware übertragbar sein.
+* **Entscheidung:** Die Klassen `Robot` und `World` stellen eine einheitliche Fassade bereit. Das Routing (`virtual`, `real`, `both`) erfolgt intern im `MyPalletizerController`.
 * **Betrachtete Alternativen:**
-  1. Getrennte Bibliotheken für Simulation (`mypalletizer_sim`) und Hardware (`mypalletizer_real`).
-  2. Direkte Verwendung der Herstellerbibliothek `pymycobot` mit Unity-Plugins.
-* **Begründung:** Eine einzige API minimiert den Lernaufwand für Studierende, ermöglicht die direkte Wiederverwendung von Beispielcode und schützt den Benutzercode vor internen Protokolländerungen.
+  1. Getrennte Bibliotheken für Simulation und Hardware.
+  2. Direkte Weitergabe der Herstellerbibliothek `pymycobot`.
+* **Begründung:** Eine gemeinsame Schnittstelle minimiert den Lernaufwand und ermöglicht die direkte Wiederverwendung von Beispielcode.
 * **Konsequenzen:**
-  * **Positiv:** Maximale Code-Portabilität; identische Syntax für alle Ausführungsmodi.
-  * **Negativ:** Die Python-Schicht trägt zusätzliche Verantwortung für Validierung, Modus-Dispatching und interne Zustandsspeicherung.
+  * **Positiv:** Identische Syntax für alle Betriebsmodi; Entkopplung des Benutzercodes von Netzwerk- und Protokolldetails.
+  * **Negativ:** Zusätzliche Abstraktionsschicht zur Verwaltung von Moduslogik und Validierung.
 
 === ADR-2: Kapselung der Herstellerbibliothek `pymycobot`
 
 * **Status:** Akzeptiert
-* **Kontext:** Der reale Roboter wird über die herstellereigene Bibliothek `pymycobot` angesteuert. Deren Schnittstellendesign entspricht jedoch nicht vollständig modernen Python-Konventionen und unterliegt herstellerseitigen Änderungen.
-* **Entscheidung:** `pymycobot` wird ausschliesslich intern im `MyPalletizerController` importiert und gekapselt. Der Benutzer interagiert niemals direkt mit `pymycobot`.
+* **Kontext:** Die herstellereigene Bibliothek `pymycobot` steuert den physischen Roboter, unterliegt jedoch herstellerseitigen API-Änderungen.
+* **Entscheidung:** `pymycobot` wird ausschliesslich intern im `MyPalletizerController` gekapselt.
 * **Betrachtete Alternativen:**
-  1. Direkte Weitergabe von `pymycobot`-Objekten an den Anwender.
-  2. Vollständige Eigenimplementierung des seriellen Kommunikationsprotokolls in Python.
-* **Begründung:** Die Kapselung stabilisiert die öffentliche API, ermöglicht zentrales Software-Clamping und entkoppelt das Projekt von herstellerspezifischen Schnittstellenbrüchen.
+  1. Direkte Verwendung von `pymycobot` durch den Anwender.
+  2. Komplette Neuentwicklung eines eigenen seriellen Treibers.
+* **Begründung:** Die Kapselung schützt die öffentliche API vor herstellerspezifischen Schnittstellenbrüchen und ermöglicht zentrales Software-Clamping.
 * **Konsequenzen:**
-  * **Positiv:** Robuste, saubere und typisierte API nach aussen; zentrale Fehlerbehandlung.
-  * **Negativ:** Neue herstellerspezifische Hardware-Features müssen manuell in die Fassade nachgezogen werden.
+  * **Positiv:** Stabile, typisierte Schnittstelle; zentrale Fehlerbehandlung.
+  * **Negativ:** Neue herstellerspezifische Funktionen müssen manuell in die Fassade integriert werden.
 
 === ADR-3: Hybride Betriebsmodi (`virtual`, `real`, `both`)
 
 * **Status:** Akzeptiert
-* **Kontext:** Für Lehre und Entwicklung wird sowohl reines Offline-Testing als auch der direkte Vergleich zwischen Simulationsmodell und realer Hardware benötigt.
-* **Entscheidung:** Das System unterstützt drei feste Betriebsmodi: `virtual` (nur UDP/Unity), `real` (nur Serial/Hardware) und `both` (parallele Ausführung).
+* **Kontext:** Es wird sowohl isoliertes Offline-Testing als auch der direkte Vergleich zwischen 3D-Modell und physischer Bewegung benötigt.
+* **Entscheidung:** Unterstützung von drei festen Betriebsarten: `virtual` (nur Unity), `real` (nur Hardware) und `both` (Parallelbetrieb).
 * **Betrachtete Alternativen:**
-  1. Ausschliesslicher Simulationsbetrieb.
-  2. Umschalten über Konfigurationsdateien statt nativer Klassenparameter.
-* **Begründung:** Der Modus `both` erlaubt das gleichzeitige visuelle Vergleichen von CAD-Kinematik und physischer Servo-Bewegung zur Laufzeit.
+  1. Reine Simulationslösung.
+  2. Umschalten über externe Konfigurationsdateien statt nativer Klassenparameter.
+* **Begründung:** Der Modus `both` erlaubt den synchronen visuellen Abgleich von Kinematikmodell und Servo-Verhalten im Labor.
 * **Konsequenzen:**
-  * **Positiv:** Hohe Flexibilität für Studierende im Selbststudium sowie im Laborunterricht.
-  * **Negativ:** Im Modus `both` können minimale zeitliche Abweichungen zwischen Simulation und Hardware entstehen, da keine starre Master-Slave-Regelung implementiert ist.
+  * **Positiv:** Hohe Flexibilität für Studierende im Selbststudium und im Labor.
+  * **Negativ:** Im Modus `both` können minimale zeitliche Abweichungen zwischen Simulation und Hardware entstehen.
 
 === ADR-4: Trennung der Kommunikationskanäle (UDP Ports 5005 und 5006)
 
 * **Status:** Akzeptiert
-* **Kontext:** Das System überträgt zeitkritische, hochfrequente Roboter-Bewegungsbefehle sowie unregelmässige, datenintensivere Welt- und Szenenbefehle.
-* **Entscheidung:** Roboterkommandos werden über UDP-Port `5005` gesendet, Weltbefehle (`spawn`, `delete`, `clear`) über UDP-Port `5006`.
+* **Kontext:** Das System überträgt zeitkritische Gelenkbefehle sowie datenintensivere Szenen- und Objektbefehle.
+* **Entscheidung:** Roboterkommandos werden über UDP-Port `5005` gesendet, Weltbefehle über UDP-Port `5006`.
 * **Betrachtete Alternativen:**
-  1. Ein gemeinsamer UDP-Kanal für alle Nachrichtentypen.
-  2. Verwendung von TCP oder WebSockets für das Gesamtsystem.
-* **Begründung:** Die Porttrennung verhindert, dass das Instanziieren grosser Szenarien oder Laden von Presets den zeitkritischen Strom der Roboterkinematik verzögert. Zudem vereinfacht es die Empfängerarchitektur in Unity.
+  1. Gemeinsamer UDP-Kanal für alle Nachrichtentypen.
+  2. Einsatz von TCP oder WebSockets.
+* **Begründung:** Die Porttrennung verhindert, dass das Laden grosser Szenarien oder Presets die kontinuierliche Roboterkinematik blockiert.
 * **Konsequenzen:**
   * **Positiv:** Klare funktionale Entkopplung; keine Latenzspitzen bei der Roboterbewegung.
   * **Negativ:** Zwei lokale Netzwerkports müssen freigehalten und konfiguriert werden.
@@ -60,50 +60,50 @@ Die folgenden Architectural Decision Records (ADRs) dokumentieren die wesentlich
 === ADR-5: Bereitstellung vordefinierter Szenarien über Presets
 
 * **Status:** Akzeptiert
-* **Kontext:** In Übungen und Tests müssen reproduzierbare Ausgangssituationen für Pick-and-Place-Aufgaben schnell aufgebaut werden können.
-* **Entscheidung:** Standard-Szenarien (`three_blocks`, `pick_and_place_basic`, `sorting_task`) werden als Python-Presets definiert und können über `World.load_preset()` geladen werden.
+* **Kontext:** In Übungen müssen reproduzierbare Ausgangssituationen für Pick-and-Place-Aufgaben schnell geladen werden können.
+* **Entscheidung:** Standardszenarien (`three_blocks`, `pick_and_place_basic`, `sorting_task`) werden als Python-Presets definiert und über `World.load_preset()` bereitgestellt.
 * **Betrachtete Alternativen:**
   1. Manuelles Platzieren aller Objekte im Unity-Editor vor Programmstart.
-  2. Speichern der Szenen ausschliesslich in externen JSON-Dateien.
-* **Begründung:** Code-basierte Presets ermöglichen deterministische und automatisierbare Praktikumsaufgaben direkt aus dem Python-Steuerungsskript.
+  2. Laden ausschliesslich aus externen JSON-Dateien.
+* **Begründung:** Codebasierte Presets ermöglichen deterministische und automatisierbare Übungsabläufe direkt aus dem Steuerungsskript.
 * **Konsequenzen:**
-  * **Positiv:** Hohe Reproduzierbarkeit in Lehre und Testbetrieb; sofortiger Einstieg ohne Vorkenntnisse.
-  * **Negativ:** Presets müssen bei Erweiterung der geometrischen Objektbibliothek gepflegt werden.
+  * **Positiv:** Sofort einsatzbereite, reproduzierbare Laboraufgaben.
+  * **Negativ:** Presets müssen bei Erweiterung der 3D-Körper-Bibliothek nachgepflegt werden.
 
 === ADR-6: Einsatz von `ArticulationBody` für die Gelenkphysik in Unity
 
 * **Status:** Akzeptiert
-* **Kontext:** Ein 4-Achs-Roboterarm besteht aus zusammenhängenden Starrkörpern mit Drehgelenken. Die Gelenke müssen physikalisch stabil reagieren und Lasten tragen können.
-* **Entscheidung:** Der Roboterarm wird in Unity mittels `ArticulationBody`-Komponenten statt herkömmlicher `Rigidbody`- und `ConfigurableJoint`-Ketten aufgebaut.
+* **Kontext:** Der Roboterarm besteht aus vier rotatorisch verbundenen Starrkörpern, die Lasten aufnehmen und stabil bewegt werden müssen.
+* **Entscheidung:** Verwendung von `ArticulationBody`-Komponenten statt herkömmlicher `Rigidbody`- und `HingeJoint`-Ketten.
 * **Betrachtete Alternativen:**
-  1. Rein visuelle Rotation über Unity-`Transform`-Hierarchien ohne Physik.
-  2. Physikalische Abbildung über Standard-`Rigidbody` und `HingeJoint`.
-* **Begründung:** `ArticulationBody` wurde speziell für Robotiksimulationen (PhysX Featherstone-Algorithmus) entwickelt. Es verhindert Gelenkdehnungen (*Joint Separation*) und stellt ein stabiles kinematisches Verhalten sicher.
+  1. Rein visuelle Rotation über `Transform`-Hierarchien ohne Physikberechnung.
+  2. Physiksimulation über Standard-`Rigidbody` mit Gelenken.
+* **Begründung:** `ArticulationBody` wurde speziell für Robotiksimulationen entwickelt und verhindert numerische Gelenkdehnungen zuverlässig.
 * **Konsequenzen:**
-  * **Positiv:** Realistisches physikalisches Verhalten; exakte Gelenkbeschränkungen; hohe Stabilität.
-  * **Negativ:** Höhere Konfigurationskomplexität im Unity-Inspector im Vergleich zu reinen Transform-Rotationen.
+  * **Positiv:** Stabiles Mehrkörperverhalten; exakte Gelenkbeschränkungen.
+  * **Negativ:** Höhere Konfigurationskomplexität im Unity-Inspector.
 
 === ADR-7: Pragmatische Nutzung herstellerseitiger CAD-Modelle mit Kompensation
 
 * **Status:** Akzeptiert
-* **Kontext:** Die vom Hersteller bereitgestellten 3D-CAD-Modelle weisen geringfügige geometrische Toleranzen und Abweichungen gegenüber der realen Hardware auf.
-* **Entscheidung:** Die Hersteller-CAD-Modelle werden verwendet und geometrische Abweichungen (insbesondere die Ausrichtung des Endeffektors) durch Unity-Skripte wie `GripperDownConstraint` softwareseitig kompensiert.
+* **Kontext:** Die bereitgestellten 3D-CAD-Modelle des Herstellers weisen minimale geometrische Toleranzen zur Hardware auf.
+* **Entscheidung:** Verwendung der Hersteller-CAD-Modelle mit softwareseitiger Ausrichtungskompensation (`GripperDownConstraint`) in Unity.
 * **Betrachtete Alternativen:**
-  1. Vollständige Neu-Konstruktion aller 3D-Modelle im CAD-System.
-  2. Verwendung stark vereinfachter geometrischer Platzhalter (Zylinder/Quader).
-* **Begründung:** Der Zeitaufwand für eine komplette Neu-Modellierung stand ausserhalb des Projektzeitrahmens. Die softwareseitige Kompensation liefert eine für Ausbildungszwecke vollkommen ausreichende visuelle und funktionale Genauigkeit.
+  1. Vollständige Neukonstruktion aller 3D-Modelle im CAD-System.
+  2. Verwendung stark vereinfachter Platzhalterkörper.
+* **Begründung:** Eine Neukonstruktion stand ausserhalb des Projektzeitrahmens. Die softwareseitige Ausrichtung liefert eine für Ausbildungszwecke vollkommen ausreichende visuelle und funktionale Genauigkeit.
 * **Konsequenzen:**
-  * **Positiv:** Realistischer optischer Eindruck bei moderatem Implementierungsaufwand.
-  * **Negativ:** Für submillimetergenaue kinematisierte Kollisionsprüfungen ist das Modell nicht geeignet.
+  * **Positiv:** Realistischer optischer Eindruck bei minimalem Modellierungsaufwand.
+  * **Negativ:** Für mikrometergenaue Kollisionsprüfungen ist das Modell nicht geeignet.
 
 === ADR-8: Verzicht auf optische Kamerasimulation zugunsten der Kernkinematik
 
 * **Status:** Akzeptiert
-* **Kontext:** Der reale MyPalletizer kann optional mit einer USB-Kamera betrieben werden. Kamerasimulationen unterliegen jedoch komplexen Umweltfaktoren (Licht, Rauschen, Linsenverzerrung).
-* **Entscheidung:** Das System fokussiert sich auf Kinematik, Endeffektoren, LED-Steuerung und Objektmanipulation; auf eine Kamerasimulation in Unity wird verzichtet.
+* **Kontext:** Der reale MyPalletizer kann mit einer USB-Kamera betrieben werden. Kamerasimulationen unterliegen jedoch komplexen Umweltfaktoren (Beleuchtung, Rauschen).
+* **Entscheidung:** Das System fokussiert auf Kinematik, Werkzeuge und Objektmanipulation; auf eine Kamerasimulation in Unity wird verzichtet.
 * **Betrachtete Alternativen:**
-  1. Virtuelle Unity-Kamera mit Bildstream über OpenCV an Python.
-* **Begründung:** Das Hauptziel des Projekts ist die gefahrlose Programmierung von Bewegungs- und Manipulationsabläufen. Bildverarbeitung wird in realen Praktika direkt mit physischen Kameras gelehrt.
+  1. Virtuelle Unity-Kamera mit Bildstream an OpenCV.
+* **Begründung:** Das Hauptziel ist die Programmierung von Manipulations- und Sortieraufgaben. Bildverarbeitung wird an der HSLU direkt an realer Hardware unterrichtet.
 * **Konsequenzen:**
-  * **Positiv:** Schlanke Architektur, geringere Renderlast, fokussierte Codebasis.
-  * **Negativ:** Reine Bildverarbeitungs-Pipelines (Computer Vision) können nicht im Simulator vortrainiert werden.
+  * **Positiv:** Schlanke Architektur, geringe Renderlast, fokussierte Codebasis.
+  * **Negativ:** Bildverarbeitungs-Pipelines können nicht virtuell vortrainiert werden.

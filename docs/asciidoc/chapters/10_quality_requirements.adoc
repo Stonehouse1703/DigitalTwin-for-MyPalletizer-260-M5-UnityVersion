@@ -3,110 +3,73 @@ ifndef::imagesdir[:imagesdir: ../images]
 [[section-quality-requirements]]
 == Quality Requirements
 
-Die Qualitätsanforderungen operationalisieren die in Kapitel 1 formulierten Qualitätsziele anhand eines Qualitätsbaums und konkreter, messbarer Qualitätsszenarien.
+Die Qualitätsanforderungen konkretisieren die Qualitätsziele aus Kapitel 1 anhand eines Qualitätsbaums sowie messbarer Qualitätsszenarien.
 
 === Quality Tree
 
-Der Qualitätsbaum strukturiert die zentralen Qualitätsmerkmale des Gesamtsystems gemäss ISO/IEC 25010:
+Der Qualitätsbaum ordnet die Anforderungen den ISO/IEC 25010 Qualitätsmerkmalen zu:
 
-[plantuml, target="diagram-quality-tree", format="png"]
-----
-@startmindmap
-* Qualität
-** Performanz
-*** Geringe Latenz (< 50 ms)
-*** Flüssige Darstellung (>= 60 FPS)
-** Benutzbarkeit
-*** Einheitliche Python-API
-*** Context-Manager-Support
-*** Geringe Einarbeitungszeit (< 15 min)
-** Zuverlässigkeit & Robustheit
-*** Software Clamping
-*** Fail-Fast Validierung
-*** Fehlertoleranz bei UDP-Paketverlust
-** Portabilität
-*** Windows (x64)
-*** Linux (Ubuntu 22.04+)
-*** macOS (ARM / Intel)
-** Wartbarkeit & Modularität
-*** Getrennte Robot- & World-Logik
-*** Porttrennung 5005 / 5006
-*** Gekapselte Hardwaretreiber
-** Sicherheit
-*** Verhindern von Hardwarekollisionen
-*** Begrenzung von Winkel und Speed
-@endmindmap
-----
+image::10_quality_tree.png[align=center, width=80%]
 
 === Quality Scenarios
 
-Die folgenden Szenarien definieren prüfbare Akzeptanzkriterien für den Betrieb und die Weiterentwicklung:
-
 [cols="1,1,3,2", options="header"]
 |===
-| ID | Qualitätsmerkmal | Szenario (Stimulus & Kontext) | Messbare Reaktion & Akzeptanzkriterium
+| ID | Merkmal | Szenario (Stimulus & Kontext) | Messbares Akzeptanzkriterium
 
 | **QS-1**
 | **Performanz**
-| Ein Benutzer sendet kontinuierlich Gelenkbewegungen (`send_angles`) über die Python-API an die laufende Unity-Simulation auf demselben Host-PC.
-| Die visuelle Bewegung des Roboterarms in Unity beginnt innerhalb von weniger als `50 ms` nach dem API-Aufruf.
+| Ein Benutzer sendet Gelenkbewegungen (`send_angles`) über die Python-API an die laufende Unity-Simulation.
+| Die visuelle Bewegung des Roboterarms beginnt innerhalb von weniger als `50 ms`.
 
 | **QS-2**
 | **Portabilität**
-| Ein Studierender entwickelt ein Steuerungsskript unter Windows und führt dasselbe Skript unverändert auf macOS oder Linux aus.
-| Das Skript läuft ohne Modifikationen fehlerfrei durch, sofern Python (>= 3.12) und die Abhängigkeiten installiert sind.
+| Ein Steuerungsskript wird unter Windows entwickelt und anschliessend auf macOS oder Linux ausgeführt.
+| Das Skript läuft ohne Codeanpassungen fehlerfrei aus.
 
 | **QS-3**
 | **Robustheit**
-| Die Unity-Simulation wird während der Ausführung eines Python-Skripts unerwartet beendet oder ist noch nicht gestartet.
-| Das Python-Skript blockiert nicht, stürzt nicht unkontrolliert ab und wirft bei Sendeoperationen keine blockierenden Netzwerk-Deadlocks.
+| Die Unity-Simulation wird während der Programmausführung unerwartet beendet oder ist noch nicht gestartet.
+| Das Python-Skript blockiert nicht und bricht nicht unkontrolliert ab.
 
 | **QS-4**
-| **Eingabevalidierung**
+| **Eingabeschutz**
 | Ein Benutzer übergibt einen Gelenkwinkel von `200°` für Joint 1 (zulässig: `-160°..160°`).
-| Der Controller fängt den Wert vor der Übertragung ab, begrenzt ihn automatisch auf `160°` (Clamping) und verhindert eine mechanische Überlastung der Servos.
+| Der Controller fängt den Wert ab und klemmt ihn automatisch auf `160°` (Software-Clamping).
 
 | **QS-5**
 | **Benutzbarkeit**
-| Ein neuer Anwender ohne Unity-Vorkenntnisse installiert das Python-Paket und öffnet ein vorgefertigtes Beispielskript.
-| Die Einarbeitungszeit bis zur erfolgreichen ersten Bewegung des simulierten Roboters beträgt weniger als `15 Minuten`.
+| Ein neuer Anwender ohne Unity-Vorkenntnisse installiert das Paket und führt ein Beispielskript aus.
+| Die erste Roboterbewegung in der Simulation ist in unter `15 Minuten` erfolgreich ausgeführt.
 
 | **QS-6**
 | **Wartbarkeit**
-| Ein Entwickler ergänzt einen neuen Weltbefehl in Python und C#.
-| Die Änderung erfordert Anpassungen ausschliesslich im `protocol`-Modul sowie im `WorldSpawnManager`, ohne bestehende Kinematik- oder Hardware-Klassen zu berühren.
+| Ein Entwickler ergänzt einen neuen administrativen Weltbefehl in Python und C#.
+| Die Änderung betrifft ausschliesslich das `protocol`-Modul sowie den `WorldSpawnManager`, ohne bestehende Roboterklassen zu modifizieren.
 
 | **QS-7**
 | **Funktionale Korrektheit**
 | Ein Pick-and-Place-Ablauf wird synchron im Modus `both` ausgeführt.
-| Die Bewegungsabfolge, Gelenkrichtungen und Werkzeugaktivierungen in der Simulation stimmen visuell plausibel mit den realen Roboterbewegungen überein.
+| Gelenkrichtungen und Werkzeugaktivierungen in der Simulation stimmen visuell plausibel mit der Hardware überein.
 
 | **QS-8**
 | **Fehlertoleranz**
-| Während einer schnellen Bewegung geht ein einzelnes UDP-Datagramm im lokalen Netzwerk verloren.
-| Die Simulation gerät nicht in einen inkonsistenten Zustand; das nachfolgende Datagramm führt den Roboterarm nahtlos auf die korrekte Zielbahn.
+| Während einer Bewegung geht ein einzelnes UDP-Datagramm im lokalen Netzwerk verloren.
+| Das Folgepaket führt den Roboterarm nahtlos auf die korrekte Zielbahn (kein Posenversatz).
 
 | **QS-9**
 | **Sicherheit**
-| Ein Benutzer übergibt einen fehlerhaften Geschwindigkeitswert von `250` oder negative RGB-Farbwerte.
-| Geschwindigkeiten werden strikt auf den Bereich `1..100` und RGB-Werte auf `0..255` begrenzt, bevor sie an die Hardware übertragen werden.
+| Ein Benutzer übergibt Geschwindigkeitswerte von `250` oder negative RGB-Werte.
+| Geschwindigkeiten werden auf `1..100` und RGB-Werte auf `0..255` geklemmt.
 
 | **QS-10**
 | **Reproduzierbarkeit**
-| Ein Dozent möchte ein Praktikumsszenario zurücksetzen und neu starten.
-| Durch den Aufruf von `World.load_preset("three_blocks")` wird die Szene deterministisch gereinigt und die Objekte an exakt definierten Startkoordinaten instanziiert.
+| Ein Praktikumsszenario soll deterministisch zurückgesetzt werden.
+| Der Aufruf `World.load_preset("three_blocks")` reinigt die Szene und instanziiert die Objekte an exakt definierten Startkoordinaten.
 |===
 
 === Architektonische Zielkonflikte (Trade-offs)
 
-1. **Latenz vs. Garantierte Zustellung:**
-+
-Die Wahl von verbindungslosem UDP priorisiert minimale Latenz und flüssige Animationen gegenüber einer garantierten TCP-Paketzustellung. Dieser Kompromiss ist gerechtfertigt, da Bewegungs-Datagramme zustandsbasiert und idempotent aufgebaut sind.
-
-2. **Einfachheit der API vs. Volle Hardware-Transparenz:**
-+
-Die Kapselung aller Zielsysteme hinter einer gemeinsamen `Robot`-Fassade verbirgt feingranulare herstellerspezifische Sonderfunktionen von `pymycobot`. Dies wird bewusst in Kauf genommen, um eine konsistente, leicht erlernbare Schnittstelle für Studierende zu gewährleisten.
-
-3. **Visuelle Plausibilität vs. Hochpräzise Dynamiksimulation:**
-+
-Die Simulation priorisiert eine performante, echtzeitfähige Darstellung in Unity gegenüber einer rechenintensiven Finite-Elemente- oder Reibungsberechnung.
+* **Latenz vs. Garantierte Zustellung:** Verbindungsloses UDP priorisiert minimale Latenz gegenüber garantierter TCP-Paketzustellung; die Zustands-Idempotenz kompensiert diesen Verlust.
+* **Einfachheit der API vs. Hardware-Transparenz:** Die High-Level-Fassade verbirgt feingranulare herstellerspezifische Sonderfunktionen von `pymycobot`, um eine einheitliche und intuitive Schnittstelle zu bieten.
+* **Visuelle Plausibilität vs. Hochpräzise Dynamik:** Die Simulation priorisiert eine performante Echtzeitdarstellung in Unity gegenüber einer rechenintensiven Finite-Elemente-Simulation.

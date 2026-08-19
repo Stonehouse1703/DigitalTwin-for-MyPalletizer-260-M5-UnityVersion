@@ -1,0 +1,30 @@
+@startuml
+!include style.puml
+
+package "mypalletizer (Python Control Layer)" {
+    component "Robot\n(High-Level Fassade)" as Robot
+    component "World\n(High-Level Fassade)" as World
+    component "MyPalletizerController\n(Dispatcher & Controller)" as Controller
+    component "protocol\n(JSON Factory)" as Protocol
+    component "presets\n(Szenario-Katalog)" as Presets
+    component "objects\n(Box / Sphere / Cylinder)" as Objects
+    component "errors\n(Custom Exceptions)" as Errors
+}
+
+component "pymycobot\n(Hersteller-Treiber)" as PyMyCobot
+
+Robot --> Controller : Delegiert Roboterbefehle
+Robot ..> Errors : Validierungsfehler
+
+Controller --> Protocol : Erstellt Roboter-JSON
+Controller --> PyMyCobot : Serielle Hardwareansteuerung
+Controller ..> Errors : Verbindungsfehler
+
+World --> Protocol : Erstellt Welt-JSON
+World --> Presets : Lädt Szenarien
+World --> Objects : Nutzt Datenklassen
+World ..> Errors : Konfigurationsfehler
+
+Presets --> Objects : Instanziiert WorldObject-Objekte
+
+@enduml
