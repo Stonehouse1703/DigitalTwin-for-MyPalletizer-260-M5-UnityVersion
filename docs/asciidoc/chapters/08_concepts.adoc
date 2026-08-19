@@ -2,36 +2,144 @@ ifndef::imagesdir[:imagesdir: ../images]
 
 [[section-concepts]]
 == Cross-cutting Concepts
-////
-This section describes crosscutting concepts (practices, patterns, regulations or solution ideas). Such concepts are often related to multiple building blocks. They may include many different topics, such as the topics shown in the following diagram:
 
-Motivation
+In diesem Kapitel werden die querschnittlichen Entwürfe, Architekturmuster und Implementierungsprinzipien beschrieben, die über mehrere Komponenten und Schichten hinweg wirken.
 
-Concepts form the basis for conceptual integrity (consistency, homogeneity) of the architecture. Thus, they are an important contribution to achieve inner qualities of your system.
+=== Simulations- und Kinematikkonzept
 
-This is the place in the template that we provided for a cohesive specification of such concepts.
+Die Kinematik des MyPalletizer 260 M5 wird in Unity über spezialisierte `ArticulationBody`-Komponenten abgebildet. Im Gegensatz zu klassischen `Rigidbody`-Ketten ermöglichen Articulation Bodies eine hochstabile und physikalisch exakte Berechnung geschlossener und serieller Mehrkörpersysteme ohne Gelenkdrift.
 
-Many of these concepts relate to or influence several of your building blocks.
+image::Joints.png[align=center, width=80%]
 
-Form
+* **Gelenkhierarchie:** Der Roboterarm besteht aus einer hierarchischen Kette von vier Drehgelenken (`J1` bis `J4`). Eine Drehung von `J2` (Schulter) führt physikalisch korrekt dazu, dass alle nachgelagerten Glieder (`J3`, `J4` und das Werkzeug) mitbewegt werden.
+* **Winkelinterpolation:** Der `ArticulationJointActuator` berechnet die erforderliche Schrittweite im `FixedUpdate`-Zyklus und führt das Gelenk über die Unity-Eigenschaft `xDrive.target` flüssig an die Zielposition.
+* **Palettier-Mechanik (`GripperDownConstraint`):** Bei realen Palettierrobotern sorgt ein mechanisches Parallelogrammgestänge dafür, dass der Werkzeugkopf stets exakt nach unten ausgerichtet bleibt. In Unity wird dies im `LateUpdate`-Schritt durch die Komponente `GripperDownConstraint` rechnerisch gelöst, wodurch der Greifer unabhängig vom Armwinkel stabil vertikal bleibt.
 
-The form can be varied:
+=== Kommunikations- und Protokollkonzept
 
-• concept papers with any kind of structure
+Die Kommunikation zwischen Python und Unity basiert auf verbindungslosen UDP-Datagrammen mit UTF-8-kodierten JSON-Payloads.
 
-• example implementations,especially for technical concepts
+* **Porttrennung:** 
+  ** Port `5005` (Roboterkanal): Hochfrequente Gelenkwinkel, LED-Farben und Werkzeugbefehle.
+  ** Port `5006` (Weltkanal): Diskrete administrative Szenenkommandos (`spawn`, `delete`, `clear`).
+* **Protokollstruktur:** Jede Nachricht besitzt ein einheitliches Wurzelschema:
++
+[source,json]
+----
+{
+  "v": 1,
+  "type": "<command_name>",
+  "...": "<parameters>"
+}
+----
+* **Zustandsbasierte Idempotenz:** Bewegungsnachrichten übertragen stets die absoluten Winkel aller vier Achsen. Geht ein UDP-Paket über das Netzwerk verloren, korrigiert das nachfolgende Paket die Pose unverzüglich, ohne dass kumulative Fehler entstehen.
 
-• cross-cutting model excerpts or scenarios using notations of the architecture views
+=== Threading- und Synchronisationskonzept in Unity
 
-Structure
+Unity unterstützt Zugriffe auf Szenenobjekte und Physikkomponenten ausschliesslich aus dem Hauptthread (*Unity Main Thread*). Netzwerkaufrufe dürfen den Rendering-Loop jedoch nicht blockieren.
 
-Pick only the most-needed topics for your system and assign each a level-2 heading in this section (e.g. 8.1, 8.2 etc).
+[plantuml, target="diagram-threading-concept", format="png"]
+----
+@startuml
+skinparam activityFontSize 12
 
-DO NOT ATTEMPT to cover all of the topics of the aforementioned diagram.
+|Hintergrund-Thread (UdpClient)|
+start
+:Empfange UDP-Byte-Array;
+:Deserialisiere JSON zu RobotCommand;
+:Lock(_lock);
+:Queue.Enqueue(cmd);
+:Unlock(_lock);
+detach
 
-Further Information
+|Unity Hauptthread (Coroutine CommandRunner)|
+start
+repeat
+    :Lock(_lock);
+    if (Queue nicht leer?) then (ja)
+        :cmd = Queue.Dequeue();
+        :Unlock(_lock);
+        if (cmd.type == "sync_move_joints") then (synchron)
+            :yield return adapter.MoveJointsSync(...);
+        else (asynchron / tool)
+            :adapter.MoveJointsAsync(...) bzw. Tool-Aktion;
+        endif
+    else (nein)
+        :Unlock(_lock);
+        :yield return null;
+    endif
+repeat while (Applikation läuft)
+stop
+@enduml
+----
 
-Some topics within systems often concern multiple building blocks, hardware elements or development processes. It might be easier to communicate or document such cross-cutting topics at a central location, instead of repeating them in the description of the concerned building blocks, hardware elements or development processes.
+* **Entkopplung:** Eintreffende UDP-Pakete werden in einem separaten Thread empfangen und thread-sicher in die Warteschlange eingereiht.
+* **Coroutinen-Abarbeitung:** Der `CommandRunner` arbeitet die Befehle im Unity-Frame-Zyklus ab. Bei synchronen Bewegungen (`sync_move_joints`) pausiert die Coroutine mit `yield return`, bis alle Gelenke innerhalb einer Toleranz von `0.5°` am Ziel sind.
 
-Certain concepts might concern all elements of a system, others might only be relevant for a few. In the diagram above, logging concerns all three components, whereas security is relevant only for two components.
-////
+=== Zustands- und Telemetriekonzept
+
+Das System unterscheidet zwischen simuliertem Soll-Zustand und physikalischem Hardware-Ist-Zustand:
+
+* **Modus `virtual`:** Der `MyPalletizerController` speichert die zuletzt gesetzten Winkel im internen Array `_sim_angles`. Die Methode `get_angles()` gibt diese Werte unmittelbar zurück. Dadurch arbeitet die API auch ohne Netzwerk-Rückkanal deterministisch und extrem schnell.
+* **Modus `real`:** `get_angles()` liest die echten Winkelwerte über das serielle Protokoll von den Servos des Roboters aus.
+* **Modus `both`:** `get_angles()` liefert beide Datensätze formatiert zurück (`Real - j1..j4` und `Sim - j1..j4`), was einen direkten Soll-Ist-Vergleich im Terminal erlaubt.
+
+=== Endeffektor- und Greifkonzept
+
+Die Abstraktion verschiedener Werkzeuge erfolgt über ein einheitliches Endeffektormodell:
+
+[plantuml, target="diagram-endeffector-concept", format="png"]
+----
+@startuml
+skinparam state {
+    BackgroundColor White
+    BorderColor Black
+}
+
+[*] --> GripperAktiv : set_end_effector("gripper")
+[*] --> PumpAktiv : set_end_effector("pump")
+
+state GripperAktiv {
+    [*] --> Offen
+    Offen --> Geschlossen : set_gripper_state(1) [OverlapSphere -> AttachTo]
+    Geschlossen --> Offen : set_gripper_state(0) [Detach]
+}
+
+state PumpAktiv {
+    [*] --> PumpOff
+    PumpOff --> PumpOn : pump_on() [OverlapSphere -> AttachTo]
+    PumpOn --> PumpOff : pump_off() [Detach]
+}
+@enduml
+----
+
+* **Sichtbarkeitssteuerung:** Der `RobotToolManager` aktiviert das entsprechende 3D-Modell (`gripperTool` oder `pumpTool`) und deaktiviert das andere.
+* **Physikalische Interaktion:** Beide Werkzeuge nutzen `Physics.OverlapSphere`, um manipulierbare Objekte mit der Komponente `GrabbableObject` im Arbeitsradius zu identifizieren.
+* **Kinematische Kopplung:** Ein gegriffenes oder angesaugtes Objekt wird hierarchisch an den Befestigungspunkt (*Attach Point*) gekoppelt (`obj.AttachTo(attachPoint)`). Bei `Release()` bzw. `PumpOff()` wird die Verbindung gelöst und die Schwerkraft wieder aktiviert.
+
+=== Welt- und Szenarienkonzept
+
+Die Verwaltung der Simulationsumgebung ist vollständig von der Roboterkinematik getrennt:
+
+* **Geometrische Grundkörper:** Über die Klassen `Box`, `Sphere` und `Cylinder` können dynamische oder statische Objekte mit individueller Position, Rotation, Skalierung und RGB-Farbe platziert werden.
+* **Dynamische Komponenten:** Der `WorldSpawnManager` stattet gespawnte Objekte automatisch mit `Rigidbody`, Kollisionsgeometrie und `GrabbableObject` aus.
+* **Vordefinierte Szenarien (Presets):** Über `World.load_preset()` können standardisierte Übungsaufbauten (`three_blocks`, `pick_and_place_basic`, `sorting_task`) reproduzierbar mit einem einzigen Aufruf in die Szene geladen werden.
+
+=== Validierungs- und Sicherheitskonzept
+
+Das System verfolgt ein striktes Schutzkonzept gegen Fehlbedienung und Hardwareschäden:
+
+1. **Parameterprüfung (Fail-Fast):** Fehlerhafte Betriebsmodi, fehlende serielle Ports oder ungültige 3D-Vektoren lösen sofort aussagekräftige Ausnahmen (`InvalidConfigError`) aus.
+2. **Winkelbegrenzung (Software Clamping):** Vor jeder Weiterleitung werden die Gelenkwinkel auf die exakten Hardwarespezifikationen geklemmt (`J1: -160..160°`, `J2: 0..90°`, `J3: -92..60°`, `J4: -360..360°`).
+3. **Dynamik- und Farbschutz:** Geschwindigkeiten werden auf `1..100` und LED-Werte auf `0..255` begrenzt.
+
+=== Test- und Qualitätssicherungskonzept
+
+* **Python Unit Tests:** Automatisierte Tests mit `pytest` validieren die Protokollerstellung (`test_protocol.py`), das Verhalten der Roboter-Fassade (`test_robot.py`) sowie die Szenenoperationen (`test_world.py`) unter Verwendung von Mocks für Sockets und serielle Treiber.
+* **Unity EditMode Tests:** C#-NUnit-Tests (`SerializationTests`, `ComponentTests`) prüfen die Deserialisierung von JSON-Strings und das Vorhandensein erforderlicher Komponenten im Unity-Projekt.
+* **Manuelle Systemtests:** Umfassende End-to-End-Testszenarien (z. B. Pick-and-Place-Zyklen) sind im GitHub-Wiki dokumentiert und validieren das Gesamtzusammenspiel zwischen Python und Unity.
+
+=== Usability und Developer Experience
+
+* **Kontextmanager-Unterstützung:** Die Klassen `Robot` und `World` implementieren `__enter__` und `__exit__`. Dadurch werden Netzwerk-Sockets und serielle Hardwareports bei Skriptende oder im Fehlerfall automatisch geschlossen (`with Robot(mode=RobotMode.VIRTUAL) as robot:`).
+* **Pythonic API & Type Hinting:** Durchgängige Typannotationen und Enums (`RobotMode`, `EndEffector`) erleichtern die Codevervollständigung in modernen IDEs.

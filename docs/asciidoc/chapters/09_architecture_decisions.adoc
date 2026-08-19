@@ -3,26 +3,107 @@ ifndef::imagesdir[:imagesdir: ../images]
 [[section-design-decisions]]
 == Architecture Decisions
 
-////
-Contents
+Die folgenden Architectural Decision Records (ADRs) dokumentieren die wesentlichen architektonischen Richtungsentscheidungen, deren Begründung sowie die damit verbundenen Konsequenzen und Kompromisse.
 
-Important, expensive, large scale or risky architecture decisions including rationales. With "decisions" we mean selecting one alternative based on given criteria.
+=== ADR-1: Einheitliche Python-API für Simulation und Hardware
 
-Please use your judgement to decide whether an architectural decision should be documented here in this central section or whether you better document it locally (e.g. within the white box template of one building block).
+* **Status:** Akzeptiert
+* **Kontext:** Anwender sollen Steuerungsprogramme entwickeln können, ohne ihren Code beim Wechsel zwischen Simulation und physischer Hardware anpassen zu müssen.
+* **Entscheidung:** Die High-Level-Klassen `Robot` und `World` stellen eine einheitliche Fassade bereit. Die modusspezifische Verteilung (`virtual`, `real`, `both`) erfolgt transparent im `MyPalletizerController`.
+* **Betrachtete Alternativen:**
+  1. Getrennte Bibliotheken für Simulation (`mypalletizer_sim`) und Hardware (`mypalletizer_real`).
+  2. Direkte Verwendung der Herstellerbibliothek `pymycobot` mit Unity-Plugins.
+* **Begründung:** Eine einzige API minimiert den Lernaufwand für Studierende, ermöglicht die direkte Wiederverwendung von Beispielcode und schützt den Benutzercode vor internen Protokolländerungen.
+* **Konsequenzen:**
+  * **Positiv:** Maximale Code-Portabilität; identische Syntax für alle Ausführungsmodi.
+  * **Negativ:** Die Python-Schicht trägt zusätzliche Verantwortung für Validierung, Modus-Dispatching und interne Zustandsspeicherung.
 
-Avoid redundancy. Refer to section 4, where you already captured the most important decisions of your architecture.
+=== ADR-2: Kapselung der Herstellerbibliothek `pymycobot`
 
-Motivation
+* **Status:** Akzeptiert
+* **Kontext:** Der reale Roboter wird über die herstellereigene Bibliothek `pymycobot` angesteuert. Deren Schnittstellendesign entspricht jedoch nicht vollständig modernen Python-Konventionen und unterliegt herstellerseitigen Änderungen.
+* **Entscheidung:** `pymycobot` wird ausschliesslich intern im `MyPalletizerController` importiert und gekapselt. Der Benutzer interagiert niemals direkt mit `pymycobot`.
+* **Betrachtete Alternativen:**
+  1. Direkte Weitergabe von `pymycobot`-Objekten an den Anwender.
+  2. Vollständige Eigenimplementierung des seriellen Kommunikationsprotokolls in Python.
+* **Begründung:** Die Kapselung stabilisiert die öffentliche API, ermöglicht zentrales Software-Clamping und entkoppelt das Projekt von herstellerspezifischen Schnittstellenbrüchen.
+* **Konsequenzen:**
+  * **Positiv:** Robuste, saubere und typisierte API nach aussen; zentrale Fehlerbehandlung.
+  * **Negativ:** Neue herstellerspezifische Hardware-Features müssen manuell in die Fassade nachgezogen werden.
 
-Stakeholders of your system should be able to comprehend and retrace your decisions.
+=== ADR-3: Hybride Betriebsmodi (`virtual`, `real`, `both`)
 
-Form
+* **Status:** Akzeptiert
+* **Kontext:** Für Lehre und Entwicklung wird sowohl reines Offline-Testing als auch der direkte Vergleich zwischen Simulationsmodell und realer Hardware benötigt.
+* **Entscheidung:** Das System unterstützt drei feste Betriebsmodi: `virtual` (nur UDP/Unity), `real` (nur Serial/Hardware) und `both` (parallele Ausführung).
+* **Betrachtete Alternativen:**
+  1. Ausschliesslicher Simulationsbetrieb.
+  2. Umschalten über Konfigurationsdateien statt nativer Klassenparameter.
+* **Begründung:** Der Modus `both` erlaubt das gleichzeitige visuelle Vergleichen von CAD-Kinematik und physischer Servo-Bewegung zur Laufzeit.
+* **Konsequenzen:**
+  * **Positiv:** Hohe Flexibilität für Studierende im Selbststudium sowie im Laborunterricht.
+  * **Negativ:** Im Modus `both` können minimale zeitliche Abweichungen zwischen Simulation und Hardware entstehen, da keine starre Master-Slave-Regelung implementiert ist.
 
-Various options: • ADR (Documenting Architecture Decisions) for every important decision
+=== ADR-4: Trennung der Kommunikationskanäle (UDP Ports 5005 und 5006)
 
-• List or table, ordered by importance and consequences or:
+* **Status:** Akzeptiert
+* **Kontext:** Das System überträgt zeitkritische, hochfrequente Roboter-Bewegungsbefehle sowie unregelmässige, datenintensivere Welt- und Szenenbefehle.
+* **Entscheidung:** Roboterkommandos werden über UDP-Port `5005` gesendet, Weltbefehle (`spawn`, `delete`, `clear`) über UDP-Port `5006`.
+* **Betrachtete Alternativen:**
+  1. Ein gemeinsamer UDP-Kanal für alle Nachrichtentypen.
+  2. Verwendung von TCP oder WebSockets für das Gesamtsystem.
+* **Begründung:** Die Porttrennung verhindert, dass das Instanziieren grosser Szenarien oder Laden von Presets den zeitkritischen Strom der Roboterkinematik verzögert. Zudem vereinfacht es die Empfängerarchitektur in Unity.
+* **Konsequenzen:**
+  * **Positiv:** Klare funktionale Entkopplung; keine Latenzspitzen bei der Roboterbewegung.
+  * **Negativ:** Zwei lokale Netzwerkports müssen freigehalten und konfiguriert werden.
 
-• more detailed in form of separate sections per decision
+=== ADR-5: Bereitstellung vordefinierter Szenarien über Presets
 
-Further Information See Architecture Decisions in the arc42 documentation. There you will find links and examples about ADR.
-////
+* **Status:** Akzeptiert
+* **Kontext:** In Übungen und Tests müssen reproduzierbare Ausgangssituationen für Pick-and-Place-Aufgaben schnell aufgebaut werden können.
+* **Entscheidung:** Standard-Szenarien (`three_blocks`, `pick_and_place_basic`, `sorting_task`) werden als Python-Presets definiert und können über `World.load_preset()` geladen werden.
+* **Betrachtete Alternativen:**
+  1. Manuelles Platzieren aller Objekte im Unity-Editor vor Programmstart.
+  2. Speichern der Szenen ausschliesslich in externen JSON-Dateien.
+* **Begründung:** Code-basierte Presets ermöglichen deterministische und automatisierbare Praktikumsaufgaben direkt aus dem Python-Steuerungsskript.
+* **Konsequenzen:**
+  * **Positiv:** Hohe Reproduzierbarkeit in Lehre und Testbetrieb; sofortiger Einstieg ohne Vorkenntnisse.
+  * **Negativ:** Presets müssen bei Erweiterung der geometrischen Objektbibliothek gepflegt werden.
+
+=== ADR-6: Einsatz von `ArticulationBody` für die Gelenkphysik in Unity
+
+* **Status:** Akzeptiert
+* **Kontext:** Ein 4-Achs-Roboterarm besteht aus zusammenhängenden Starrkörpern mit Drehgelenken. Die Gelenke müssen physikalisch stabil reagieren und Lasten tragen können.
+* **Entscheidung:** Der Roboterarm wird in Unity mittels `ArticulationBody`-Komponenten statt herkömmlicher `Rigidbody`- und `ConfigurableJoint`-Ketten aufgebaut.
+* **Betrachtete Alternativen:**
+  1. Rein visuelle Rotation über Unity-`Transform`-Hierarchien ohne Physik.
+  2. Physikalische Abbildung über Standard-`Rigidbody` und `HingeJoint`.
+* **Begründung:** `ArticulationBody` wurde speziell für Robotiksimulationen (PhysX Featherstone-Algorithmus) entwickelt. Es verhindert Gelenkdehnungen (*Joint Separation*) und stellt ein stabiles kinematisches Verhalten sicher.
+* **Konsequenzen:**
+  * **Positiv:** Realistisches physikalisches Verhalten; exakte Gelenkbeschränkungen; hohe Stabilität.
+  * **Negativ:** Höhere Konfigurationskomplexität im Unity-Inspector im Vergleich zu reinen Transform-Rotationen.
+
+=== ADR-7: Pragmatische Nutzung herstellerseitiger CAD-Modelle mit Kompensation
+
+* **Status:** Akzeptiert
+* **Kontext:** Die vom Hersteller bereitgestellten 3D-CAD-Modelle weisen geringfügige geometrische Toleranzen und Abweichungen gegenüber der realen Hardware auf.
+* **Entscheidung:** Die Hersteller-CAD-Modelle werden verwendet und geometrische Abweichungen (insbesondere die Ausrichtung des Endeffektors) durch Unity-Skripte wie `GripperDownConstraint` softwareseitig kompensiert.
+* **Betrachtete Alternativen:**
+  1. Vollständige Neu-Konstruktion aller 3D-Modelle im CAD-System.
+  2. Verwendung stark vereinfachter geometrischer Platzhalter (Zylinder/Quader).
+* **Begründung:** Der Zeitaufwand für eine komplette Neu-Modellierung stand ausserhalb des Projektzeitrahmens. Die softwareseitige Kompensation liefert eine für Ausbildungszwecke vollkommen ausreichende visuelle und funktionale Genauigkeit.
+* **Konsequenzen:**
+  * **Positiv:** Realistischer optischer Eindruck bei moderatem Implementierungsaufwand.
+  * **Negativ:** Für submillimetergenaue kinematisierte Kollisionsprüfungen ist das Modell nicht geeignet.
+
+=== ADR-8: Verzicht auf optische Kamerasimulation zugunsten der Kernkinematik
+
+* **Status:** Akzeptiert
+* **Kontext:** Der reale MyPalletizer kann optional mit einer USB-Kamera betrieben werden. Kamerasimulationen unterliegen jedoch komplexen Umweltfaktoren (Licht, Rauschen, Linsenverzerrung).
+* **Entscheidung:** Das System fokussiert sich auf Kinematik, Endeffektoren, LED-Steuerung und Objektmanipulation; auf eine Kamerasimulation in Unity wird verzichtet.
+* **Betrachtete Alternativen:**
+  1. Virtuelle Unity-Kamera mit Bildstream über OpenCV an Python.
+* **Begründung:** Das Hauptziel des Projekts ist die gefahrlose Programmierung von Bewegungs- und Manipulationsabläufen. Bildverarbeitung wird in realen Praktika direkt mit physischen Kameras gelehrt.
+* **Konsequenzen:**
+  * **Positiv:** Schlanke Architektur, geringere Renderlast, fokussierte Codebasis.
+  * **Negativ:** Reine Bildverarbeitungs-Pipelines (Computer Vision) können nicht im Simulator vortrainiert werden.

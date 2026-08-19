@@ -3,48 +3,66 @@ ifndef::imagesdir[:imagesdir: ../images]
 [[section-glossary]]
 == Glossary
 
+Die folgende Tabelle erläutert die im Dokument verwendeten Fachbegriffe, Akronyme, Modulnamen und Softwarekonzepte in alphabetischer Reihenfolge:
+
 [cols="1,3", options="header"]
 |===
-| Begriff | Definition
-
-| **Digital Twin**
-| Ein digitaler Zwilling ist ein virtuelles Abbild eines physischen Objekts. In diesem Projekt bezeichnet der Begriff die Unity-Simulation des MyPalletizer 260 M5, die Bewegungen, Werkzeuge und einfache Szenarien nachbildet.
-
-| **MyPalletizer 260 M5**
-| Der reale Roboterarm von Elephant Robotics, der in diesem Projekt simuliert und optional über die Python-API angesteuert wird.
-
-| **Unity**
-| Eine Entwicklungsumgebung und Engine zur Erstellung der 3D-Simulation. In diesem Projekt wird Unity für Visualisierung, Gelenkbewegung, Werkzeugverhalten und Weltverwaltung verwendet.
-
-| **Articulation Body**
-| Eine Unity-Komponente zur physikalischen Simulation von kinematischen Ketten. Sie wird verwendet, um die Gelenkstruktur des Roboterarms stabiler und nachvollziehbarer abzubilden.
-
-| **UDP**
-| User Datagram Protocol. Ein verbindungsloses Netzwerkprotokoll, das für geringe Latenz geeignet ist, aber keine garantierte Zustellung einzelner Pakete bietet.
-
-| **JSON**
-| JavaScript Object Notation. Ein textbasiertes Datenformat zum Austausch strukturierter Nachrichten zwischen Python und Unity.
-
-
-| **End-Effektor**
-| Werkzeug am Ende des Roboterarms. In diesem Projekt werden insbesondere Greifer und Vakuumpumpe betrachtet.
-
-| **Preset**
-| Vordefiniertes Szenario für die Simulationswelt. Presets ermöglichen wiederholbare Ausgangssituationen für Tests, Übungen und Demonstrationen.
-
-| **CAD-Modell**
-| Dreidimensionales Modell eines Bauteils oder Roboters. Im Projekt dienen CAD-Modelle als Grundlage für die visuelle Darstellung des Roboters in Unity.
-
-| **Open-Loop-Steuerung**
-| Steuerungsansatz, bei dem Befehle gesendet werden, ohne dass ihre erfolgreiche Ausführung aktiv über einen Rückkanal bestätigt wird.
-
-| **APPLAI**
-| Applied Artificial Intelligence. Modul an der Hochschule Luzern, in dessen Rahmen das Projekt entwickelt wurde.
+| Begriff / Akronym | Definition und Projektkontext
 
 | **AI-ROBOTICS**
-| Modul an der Hochschule Luzern, in dem das Projekt weiterentwickelt wird.
+| Folgemodul an der Hochschule Luzern, in welchem der digitale Zwilling und die Python-API für praxisnahe Robotik- und KI-Aufgaben weiterverwendet werden.
+
+| **APPLAI**
+| *Applied Artificial Intelligence*. Ausbildungsmodul an der Hochschule Luzern, in dessen Rahmen dieser digitale Zwilling konzipiert und implementiert wurde.
+
+| **ArticulationBody**
+| Spezialisierte Unity-Physikkomponente zur Modellierung verbundener Starrkörperketten (Gelenke). Verhindert im Gegensatz zu Standard-Rigidbodys numerische Gelenkinstabilitäten und Dehnungen.
+
+| **Clamping (Software-Begrenzung)**
+| Automatisches Begrenzen von numerischen Werten (Gelenkwinkel, Geschwindigkeiten, RGB-Werte) auf physikalisch und mechanisch sichere Minimal- und Maximalgrenzen.
+
+| **Coroutine**
+| C#-Sprachmittel in Unity, das es ermöglicht, die Ausführung einer Methode über mehrere Frames hinweg zu pausieren (`yield return`), um zeitgesteuerte oder asynchrone Abläufe ohne Thread-Blockaden umzusetzen.
+
+| **Digitaler Zwilling (Digital Twin)**
+| Virtuelles, softwarebasiertes Abbild eines physischen Systems (hier des MyPalletizer 260 M5), das dessen Kinematik, Werkzeuge und Interaktionen in einer 3D-Simulation in Echtzeit nachbildet.
+
+| **Endeffektor**
+| Das am Ende der kinematischen Kette montierte Werkzeug des Roboterarms. In diesem Projekt werden ein mechanischer Parallelgreifer (*Gripper*) sowie eine Vakuumpumpe (*Suction Pump*) unterstützt.
+
+| **Fail-Fast**
+| Entwurfsprinzip, bei dem fehlerhafte Konfigurationen oder unzulässige Parameter sofort beim ersten Auftreten durch eine Exception abgefangen werden, anstatt fehlerhafte Zustände weiterzuleiten.
+
+| **GrabbableObject**
+| Unity-Komponente, die Umgebungsobjekte als interaktionsfähig kennzeichnet, sodass Greifer und Vakuumpumpe diese erkennen und kinematisch aufnehmen können.
+
+| **GripperDownConstraint**
+| Unity-Skriptkomponente, die geometrisch sicherstellt, dass der Werkzeugkopf bei beliebigen Armstellungen vertikal nach unten ausgerichtet bleibt (Palettier-Mechanik).
 
 | **HSLU**
-| Hochschule Luzern.
+| Hochschule Luzern (Departement Informatik).
 
+| **JSON**
+| *JavaScript Object Notation*. Leichtgewichtiges, textbasiertes Datenformat, das zur Strukturierung der UDP-Nachrichten zwischen Python und Unity verwendet wird.
+
+| **Kinematische Kette (4-DOF)**
+| Folge von starr verbundenen Gliedern mit vier rotatorischen Freiheitsgraden (*Degrees of Freedom*), welche die räumliche Bewegung des MyPalletizer 260 M5 definieren.
+
+| **MyPalletizer 260 M5**
+| 4-Achs-Palettierroboterarm der Firma *Elephant Robotics*, basierend auf der M5Stack-Mikrocontroller-Plattform (ESP32).
+
+| **Open-Loop-Steuerung**
+| Steuerungsansatz ohne kontinuierlichen Regelkreis-Rückkanal; Befehle werden gesendet, ohne dass eine explizite Empfangsquittung für jeden Einzelschritt zurückgesendet wird.
+
+| **Preset**
+| Vordefiniertes, reproduzierbares Simulationsszenario (z. B. `three_blocks`, `sorting_task`), das programmgesteuert in die Unity-Szene geladen werden kann.
+
+| **pymycobot**
+| Offizielle Python-Treiberbibliothek von Elephant Robotics zur seriellen Kommunikation mit MyPalletizer- und MyCobot-Roboterarmen.
+
+| **UDP**
+| *User Datagram Protocol*. Verbindungsloses, latenzarmes Netzwerkprotokoll zur paketbasierten Datenübertragung über IP-Netzwerke ohne Handshake-Overhead.
+
+| **Unity**
+| Professionelle 3D-Echtzeit-Entwicklungs- und Simulations-Engine, in welcher der digitale Zwilling und die grafische Benutzerschnittstelle realisiert sind.
 |===

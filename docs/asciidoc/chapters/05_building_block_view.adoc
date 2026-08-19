@@ -2,52 +2,397 @@ ifndef::imagesdir[:imagesdir: ../images]
 
 [[section-building-block-view]]
 == Building Block View
-////
-Content
 
-The building block view shows the static decomposition of the system into building blocks (modules, components, subsystems, classes, interfaces, packages, libraries, frameworks, layers, partitions, tiers, functions, macros, operations, data structures, …) as well as their dependencies (relationships, associations, …)
+Die Bausteinsicht beschreibt die statische Zerlegung des Gesamtsystems in Teilsysteme, Module und Klassen. Sie zeigt deren Verantwortlichkeiten und gegenseitige Abhängigkeiten auf drei hierarchischen Abstraktionsebenen (Level 1 bis Level 3).
 
-This view is mandatory for every architecture documentation. In analogy to a house this is the floor plan.
+=== Whitebox Overall System (Level 1)
 
-Motivation
+Auf der obersten Architekturebene gliedert sich das System in den **Python Control Layer** und den **Unity Simulation Layer**. Der physische Roboterarm **MyPalletizer 260 M5** ist als externes Zielsystem angebunden.
 
-Maintain an overview of your source code by making its structure understandable through abstraction.
+[plantuml, target="diagram-building-blocks-l1", format="png"]
+----
+@startuml
+skinparam rectangle {
+    RoundCorner 10
+}
+skinparam componentStyle rectangle
 
-This allows you to communicate with your stakeholder on an abstract level without disclosing implementation details.
+actor "Benutzer / Entwickler" as User
 
-Form
+rectangle "Digital Twin Gesamtsystem" as DTS {
+    package "Python Control Layer\n(Python >= 3.12)" as PythonLayer {
+        component "Steuerungs- & Welt-API\n(Fassade & Dispatcher)" as PyAPI
+    }
+    
+    package "Unity Simulation Layer\n(Unity 3D / C#)" as UnityLayer {
+        component "Simulations-Engine\n(Kinematik, Physik, Welt)" as UnitySim
+    }
+}
 
-The building block view is a hierarchical collection of black boxes and white boxes (see figure below) and their descriptions.
-////
+node "MyPalletizer 260 M5\n(Physische Hardware)" as RealRobot
 
-== Whitebox Overall System
-////
-Here you describe the decomposition of the overall system using the following white box template. It contains
+User --> PyAPI : Nutzt Python-API\n(Robot & World)
+PyAPI --> UnitySim : UDP / JSON (Ports 5005 & 5006)\nRoboter- & Weltnachrichten
+PyAPI --> RealRobot : USB / Serial (115200 Baud)\nüber pymycobot
 
-• an overview diagram
+@enduml
+----
 
-• a motivation for the decomposition
+==== Bausteinbeschreibungen (Level 1)
 
-• black box descriptions of the contained building blocks. For these we offer you alternatives:
+[cols="1,3", options="header"]
+|===
+| Baustein | Verantwortung und Schnittstellen
 
-– use one table for a short and pragmatic overview of all contained building blocks and their interfaces
+| **Python Control Layer**
+| Zentrale Anlaufstelle für den Anwender. Nimmt Steuerungs- und Weltbefehle entgegen, führt Eingabeprüfungen und Clamping durch und leitet die Befehle je nach Modus (`virtual`, `real`, `both`) an Unity und/oder die physische Hardware weiter.
 
-– use a list of black box descriptions of the building blocks according to the black box template (see below). Depending on your choice of tool this list could be sub-chapters (in text files), sub-pages (in a Wiki) or nested elements (in a modeling tool).
+| **Unity Simulation Layer**
+| Realisiert die 3D-Visualisierung, die physikalische Kinematiksimulation über `ArticulationBody`, die Werkzeuginteraktionen (Greifen, Saugen) sowie das dynamische Verwalten von Umgebungsobjekten.
 
-• (optional:) important interfaces, that are not explained in the black box templates of a building block, but are very important for understanding the white box. Since there are so many ways to specify interfaces why do not provide a specific template for them. In the worst case you have to specify and describe syntax, semantics, protocols, error handling, restrictions, versions, qualities, necessary compatibilities and many things more. In the best case you will get away with examples or simple signatures.
-////
+| **MyPalletizer 260 M5**
+| Physischer 4-Achs-Roboterarm. Führt Bewegungs- und Werkzeugbefehle in der Realität aus. Kommuniziert über eine serielle USB-Schnittstelle.
 
-== Level 2 
-////
-Here you can specify the inner structure of (some) building blocks from level 1 as white boxes.
+| **Benutzer / Entwickler**
+| Schreibt Steuerungsskripte in Python unter ausschliesslicher Verwendung der bereitgestellten High-Level-Klassen `Robot` und `World`.
+|===
 
-You have to decide which building blocks of your system are important enough to justify such a detailed description. Please prefer relevance over completeness. Specify important, surprising, risky, complex or volatile building blocks. Leave out normal, simple, boring or standardized parts of your system
-////
+=== Level 2: Subsysteme
 
-== Level 3
-//// 
-Here you can specify the inner structure of (some) building blocks from level 2 as white boxes.
+==== Whitebox Python Control Layer
 
-When you need more detailed levels of your architecture please copy this part of arc42 for additional levels. 
-////
+Der Python Control Layer gliedert sich in benutzernahe Fassadenklassen, einen zentralen Hardware-/Netzwerk-Controller, Hilfsmodule für Protokollerstellung und Objektdefinitionen sowie eine dedizierte Fehlerhierarchie.
 
+[plantuml, target="diagram-python-l2", format="png"]
+----
+@startuml
+skinparam componentStyle rectangle
+
+package "mypalletizer" {
+    component "Robot (API-Fassade)" as Robot
+    component "MyPalletizerController\n(Dispatcher & Driver)" as MPC
+    component "World (API-Fassade)" as World
+    component "protocol\n(JSON-Message-Builder)" as Protocol
+    component "presets\n(Szenario-Katalog)" as Presets
+    component "objects\n(WorldObject-Klassen)" as Objects
+    component "errors\n(Exceptions)" as Errors
+}
+
+component "pymycobot\n(MyPalletizer260)" as PyMyCobot
+
+Robot --> MPC : Delegiert Roboterbefehle
+Robot ..> Errors : Wirft InvalidConfigError
+
+MPC --> Protocol : Erstellt Roboter-JSON
+MPC --> PyMyCobot : Steuert physischen Roboter
+MPC ..> Errors : Wirft RobotConnectionError
+
+World --> Protocol : Erstellt Welt-JSON
+World --> Presets : Lädt vordefinierte Szenarien
+World --> Objects : Nutzt Box / Sphere / Cylinder
+World ..> Errors : Wirft WorldConnectionError / InvalidConfigError
+
+Presets --> Objects : Instanziiert Objekte
+
+@enduml
+----
+
+===== Bausteintabelle: Python Control Layer
+
+[cols="1,3", options="header"]
+|===
+| Baustein | Beschreibung und Aufgaben
+
+| **`Robot`**
+| High-Level-Fassade für Robotersteuerungsaufgaben. Bietet Methoden wie `send_angles()`, `sync_move_joints()`, `set_color()`, `set_end_effector()`, `set_gripper_state()`, `pump_on()` und `pump_off()`. Unterstützt das Context-Manager-Protokoll (`with Robot(...) as robot:`).
+
+| **`MyPalletizerController`**
+| Technischer Kern der Roboteransteuerung. Begrenzt Winkel (`_clamp`), Geschwindigkeiten (`_clamp_speed`) und RGB-Werte (`_clamp_rgb`). Verwaltet den lokalen Simulationszustand `_sim_angles`, hält den UDP-Socket für Port `5005` und kapselt die Instanz von `MyPalletizer260`.
+
+| **`World`**
+| High-Level-Fassade für die Umgebungsverwaltung. Bietet Methoden zum Hinzufügen (`spawn`), Entfernen (`delete`), Zurücksetzen (`clear`) und Laden vordefinierter Szenarien (`load_preset`). Kommuniziert über einen separaten UDP-Socket auf Port `5006`.
+
+| **`protocol`**
+| Zentrale Komponentenbibliothek zur Konstruktion aller standardisierten JSON-Nachrichten (mit Versionsfeld `v: 1` und Typangabe `type`).
+
+| **`presets`**
+| Enthält statische Definitionen reproduzierbarer Testszenarien (`empty`, `three_blocks`, `pick_and_place_basic`, `sorting_task`).
+
+| **`objects`**
+| Definiert die Basisklasse `WorldObject` sowie die spezialisierten geometrischen Klassen `Box`, `Sphere` und `Cylinder` inklusive Positions-, Rotations-, Skalierungs- und Farbvektoren.
+
+| **`errors`**
+| Definiert systemspezifische Ausnahmen: `MyPalletizerError`, `InvalidConfigError`, `RobotConnectionError` und `WorldConnectionError`.
+
+| **`pymycobot`**
+| Externe Herstellerbibliothek zur seriellen Kommunikation mit dem MyPalletizer 260 M5 (wird ausschliesslich intern im `MyPalletizerController` verwendet).
+|===
+
+==== Whitebox Unity Simulation Layer
+
+Die Simulationsarchitektur in Unity spiegelt die funktionale Trennung zwischen Robotersteuerung (Port `5005`) und Weltverwaltung (Port `5006`) symmetrisch wider.
+
+[plantuml, target="diagram-unity-l2", format="png"]
+----
+@startuml
+skinparam componentStyle rectangle
+
+package "Unity Simulation Layer" {
+    package "Robot Subsystem (Port 5005)" {
+        component "UnityUdpBridge\n(Port 5005 Receiver)" as UUB
+        component "MyPalletizerArticulationAdapter" as Adapter
+        component "ArticulationJointActuator\n(J1 .. J4)" as Actuators
+        component "RobotToolManager" as ToolManager
+        component "SimpleGripperController" as Gripper
+        component "SuctionPumpController" as Pump
+        component "RobotLEDController" as LED
+        component "GripperDownConstraint" as DownConstraint
+    }
+
+    package "World Subsystem (Port 5006)" {
+        component "WorldUdpBridge\n(Port 5006 Receiver)" as WUB
+        component "WorldSpawnManager" as WSM
+        component "GrabbableObject" as GO
+    }
+}
+
+UUB --> Adapter : move_joints / sync_move_joints
+UUB --> ToolManager : set_end_effector / set_gripper_state / pump
+UUB --> LED : led
+
+Adapter --> Actuators : MoveToAsync / MoveTo (J1..J4)
+DownConstraint ..> Actuators : Korrigiert Endeffektor-Neigung
+
+ToolManager --> Gripper : Greifbefehle
+ToolManager --> Pump : Saugbefehle
+
+WUB --> WSM : spawn / delete / clear
+WSM --> GO : Erzeugt physikalische Objekte
+Gripper ..> GO : Greift über Trigger
+Pump ..> GO : Saugt über Trigger
+
+@enduml
+----
+
+===== Bausteintabelle: Unity Simulation Layer
+
+[cols="1,3", options="header"]
+|===
+| Baustein | Beschreibung und Aufgaben
+
+| **`UnityUdpBridge`**
+| Empfängt UDP-Datagramme auf Port `5005` in einem Hintergrund-Thread, deserialisiert diese in `RobotCommand`-Strukturen und reiht sie in eine thread-sichere Queue ein. Der `CommandRunner` führt die Kommandos im Unity-Hauptthread aus.
+
+| **`MyPalletizerArticulationAdapter`**
+| Koordiniert die vier Gelenkaktuatoren `j1` bis `j4`. Bietet `MoveJointsAsync` für sofortige asynchrone Bewegungen sowie die Coroutine `MoveJointsSync` für synchrone Bewegungsabläufe.
+
+| **`ArticulationJointActuator`**
+| Steuert den `ArticulationBody` eines einzelnen Gelenks über dessen `xDrive`. Führt die geschwindigkeitsgesteuerte Interpolation (`Mathf.MoveTowards`) im `FixedUpdate`-Zyklus durch.
+
+| **`GripperDownConstraint`**
+| Sorgt durch geometrische Rotationsanpassungen im `LateUpdate` dafür, dass der Werkzeugkopf des Palettierers stets stabil nach unten ausgerichtet bleibt.
+
+| **`RobotToolManager`**
+| Verwaltet die aktiven Endeffektoren (`gripperTool` und `pumpTool`). Schaltet 3D-Modelle um und leitet Aktionen an den aktiven Controller weiter.
+
+| **`SimpleGripperController`**
+| Realisiert das Schliessen und Öffnen des Parallelgreifers. Erkennt über `Physics.OverlapSphere` nahegelegene `GrabbableObject`-Instanzen und fixiert diese hierarchisch am Werkzeug.
+
+| **`SuctionPumpController`**
+| Schaltet die Vakuumpumpe ein oder aus. Findet bei aktivem Unterdruck das nächste `GrabbableObject` im Saugbereich und koppelt es an die Pumpe.
+
+| **`RobotLEDController`**
+| Steuert die visuelle Farb- und Emissionsdarstellung der M5-Basis-LEDs in der 3D-Szene.
+
+| **`WorldUdpBridge`**
+| Empfängt JSON-Nachrichten auf Port `5006` und übergibt diese im `Update`-Frame an den `WorldSpawnManager`.
+
+| **`WorldSpawnManager`**
+| Erzeugt zur Laufzeit Game-Objects basierend auf Prefabs (`boxPrefab`, `spherePrefab`, `cylinderPrefab`), konfiguriert `Rigidbody` und `GrabbableObject`, weist Farben/Skalierungen zu und verwaltet die Liste aktiver Objekte (`_spawnedObjects`).
+
+| **`GrabbableObject`**
+| Kennzeichnet dynamische Objekte als manipulierbar für Greifer und Vakuumpumpe und verwaltet deren kinematischen Zustand (`AttachTo`, `Detach`).
+|===
+
+=== Level 3: Detaillierte Bausteine
+
+==== Whitebox `MyPalletizerController`
+
+Der `MyPalletizerController` bildet das zentrale Bindeglied zwischen High-Level-API, Netzwerk-Bridge und physischer Roboterhardware.
+
+[plantuml, target="diagram-controller-l3", format="png"]
+----
+@startuml
+skinparam classAttributeIconSize 0
+
+class MyPalletizerController {
+    - mode: str
+    - mc: Optional[MyPalletizer260]
+    - sock: Optional[socket]
+    - udp_ip: str
+    - udp_port: int
+    - _sim_angles: list[float]
+    - _JOINT_LIMITS: dict
+    __
+    + send_angles(j1, j2, j3, j4, speed)
+    + send_angle(id, degree, speed)
+    + sync_move_joints(j1, j2, j3, j4, speed)
+    + set_color(r, g, b)
+    + get_angles() : str
+    + set_end_effector(tool)
+    + set_gripper_state(flag, speed, _type_1)
+    + pump_on()
+    + pump_off()
+    + sleep(seconds)
+    + close()
+    __
+    - _send_udp(payload: dict)
+    - _clamp(joint: str, angle: float) : float
+    - _clamp_speed(speed: int) : int
+    - _clamp_rgb(r, g, b) : tuple
+}
+
+class MyPalletizer260 <<pymycobot>>
+class protocol <<module>>
+
+MyPalletizerController --> MyPalletizer260 : Hardware-Ansteuerung
+MyPalletizerController --> protocol : Erstellt Payloads
+
+@enduml
+----
+
+* **Gelenkwinkelbegrenzung:** Die Methode `_clamp()` verhindert mechanische Kollisionen durch hart codierte physikalische Grenzen (`j1: -160..160`, `j2: 0..90`, `j3: -92..60`, `j4: -360..360`).
+* **Modus-Routing:** Im Modus `virtual` wird ausschliesslich `_send_udp()` aufgerufen; im Modus `real` werden Methoden von `MyPalletizer260` ausgeführt; im Modus `both` erfolgen beide Aufrufe synchron.
+* **Telemetrie-Simulation:** `get_angles()` liefert im Modus `virtual` die formatierten Werte aus `_sim_angles` und im Modus `real`/`both` die von der Hardware ausgelesenen Gelenkdaten.
+
+==== Whitebox `World` und `WorldObject`
+
+Die `World`-Klasse verwaltet die Simulationsumgebung unabhängig von der Roboterkinematik.
+
+[plantuml, target="diagram-world-l3", format="png"]
+----
+@startuml
+skinparam classAttributeIconSize 0
+
+class World {
+    - ip: str
+    - udp_port: int
+    - sock: Optional[socket]
+    __
+    + spawn(obj: WorldObject)
+    + delete(name: str)
+    + clear()
+    + list_presets() : list[str]
+    + load_preset(name: str, clear_first: bool)
+    + close()
+    __
+    - _send_udp(payload: dict)
+    - _validate()
+    - _validate_object(obj: WorldObject)
+}
+
+abstract class WorldObject {
+    + object_type: str
+    + name: str
+    + position: tuple[float, float, float]
+    + rotation: tuple[float, float, float]
+    + scale: tuple[float, float, float]
+    + color: tuple[int, int, int]
+    + is_static: bool
+}
+
+class Box extends WorldObject
+class Sphere extends WorldObject
+class Cylinder extends WorldObject
+
+World --> WorldObject : validiert & sendet
+World --> protocol : Erstellt Welt-Payloads
+
+@enduml
+----
+
+* **Validierung:** `_validate_object()` prüft vor dem Senden, dass Objektnamen nicht leer sind, 3D-Vektoren exakt 3 Werte enthalten und die Skalierungskomponenten strikt positiv (`> 0`) sind.
+* **Preset-Engine:** `load_preset()` iteriert über vordefinierte Objektlisten aus dem Modul `presets` und versendet entsprechende `spawn`-Nachrichten.
+
+==== Whitebox `protocol` (Nachrichtenformate)
+
+Das `protocol`-Modul stellt sicher, dass alle JSON-Nachrichten einheitlich strukturiert sind. Jedes Paket enthält die Protokollversion (`"v": 1`) und das Feld `"type"`.
+
+[cols="1,1,3", options="header"]
+|===
+| Nachrichtentyp (`type`) | Kanal | Beispielhafter JSON-Payload
+
+| `"move_joints"`
+| Port `5005`
+| `{"v":1,"type":"move_joints","j1":0.0,"j2":20.0,"j3":-30.0,"j4":0.0,"speed":40}`
+
+| `"sync_move_joints"`
+| Port `5005`
+| `{"v":1,"type":"sync_move_joints","j1":10.0,"j2":45.0,"j3":0.0,"j4":90.0,"speed":50}`
+
+| `"led"`
+| Port `5005`
+| `{"v":1,"type":"led","r":0,"g":255,"b":0}`
+
+| `"set_end_effector"`
+| Port `5005`
+| `{"v":1,"type":"set_end_effector","tool":"gripper"}`
+
+| `"set_gripper_state"`
+| Port `5005`
+| `{"v":1,"type":"set_gripper_state","flag":1,"speed":50,"type_1":1}`
+
+| `"pump"`
+| Port `5005`
+| `{"v":1,"type":"pump","enabled":true}`
+
+| `"spawn"`
+| Port `5006`
+| `{"v":1,"type":"spawn","object_type":"box","name":"b1","position":{"x":0.1,"y":0.2,"z":0.3},"rotation":{"x":0,"y":0,"z":0},"scale":{"x":0.05,"y":0.05,"z":0.05},"color":{"r":255,"g":0,"b":0},"is_static":false}`
+
+| `"delete"`
+| Port `5006`
+| `{"v":1,"type":"delete","name":"b1"}`
+
+| `"clear"`
+| Port `5006`
+| `{"v":1,"type":"clear"}`
+|===
+
+==== Whitebox Gelenkaktuierung in Unity
+
+[plantuml, target="diagram-actuators-l3", format="png"]
+----
+@startuml
+skinparam classAttributeIconSize 0
+
+class MyPalletizerArticulationAdapter {
+    + j1: ArticulationJointActuator
+    + j2: ArticulationJointActuator
+    + j3: ArticulationJointActuator
+    + j4: ArticulationJointActuator
+    __
+    + MoveJointsAsync(a1, a2, a3, a4, speed)
+    + MoveJointsSync(a1, a2, a3, a4, speed, epsDeg) : IEnumerator
+}
+
+class ArticulationJointActuator {
+    + speedScale: float = 1.5
+    + minDegPerSec: float = 8.0
+    - _ab: ArticulationBody
+    - _moveCo: Coroutine
+    __
+    + MoveToAsync(targetDeg, speed)
+    + MoveTo(targetDeg, speed) : IEnumerator
+    + GetCurrentAngleDeg() : float
+    + IsAtTarget(targetDeg, epsDeg) : bool
+    + Stop()
+}
+
+MyPalletizerArticulationAdapter "1" *-- "4" ArticulationJointActuator : steuert an
+
+@enduml
+----
+
+* **Interpolationslogik:** `ArticulationJointActuator` berechnet die Winkelgeschwindigkeit via `degPerSec = max(minDegPerSec, speed * speedScale)` und führt die Rotation schrittweise im `FixedUpdate`-Zyklus über `xDrive.target` durch.
+* **Synchronisation:** `MoveJointsSync` prüft in jedem Physik-Tick, ob alle vier Gelenke ihre Zielwinkel innerhalb von `epsDeg` (Standard `0.5°`) erreicht haben, bevor der Ablauf fortgesetzt wird.

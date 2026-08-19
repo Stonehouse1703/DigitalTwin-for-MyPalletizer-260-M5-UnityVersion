@@ -1,63 +1,61 @@
 = DigitalTwin for MyPalletizer 260 M5 Unity Version
 :imagesdir: ./images
 :toc: preamble
-:toclevels: 1
+:toclevels: 2
 :toc-title: Inhaltsverzeichnis
 :numbered:
 
 image::title.png[width=75%, align=center]
 
-
 == Abstract
-Dieses Dokument beschreibt die Architektur des digitalen Zwillings für den MyPalletizer 260 M5. Das System ermöglicht die hybride Steuerung von Hardware und Simulation über eine einheitliche Python-Schnittstelle. Es dient primär Ausbildungszwecken an der Hochschule Luzern (HSLU).
+Dieses Dokument beschreibt die Software- und Systemarchitektur des digitalen Zwillings für den Roboterarm **MyPalletizer 260 M5** nach dem arc42-Standard. Das System ermöglicht die Entwicklung, den Test und die hybride Steuerung von Simulation (Unity) und physischer Roboterhardware über eine einheitliche, benutzerfreundliche Python-Schnittstelle. Es wurde im Rahmen des Moduls Applied Artificial Intelligence (APPLAI) an der Hochschule Luzern (HSLU) entwickelt.
 
-<<<
+
 // 1. Introduction and Goals
 include::chapters/01_introduction_and_goals.adoc[]
 
-<<<
+
 // 2. Architecture Constraints
 include::chapters/02_architecture_constraints.adoc[]
 
-<<<
 // 3. Context and Scope
-include::chapters/03_system_scope_and_context.adoc[]
+include::chapters/03_context_and_scope.adoc[]
 
-<<<
+
 // 4. Solution Strategy
 include::chapters/04_solution_strategy.adoc[]
 
-<<<
+
 // 5. Building Block View
 include::chapters/05_building_block_view.adoc[]
 
-<<<
+
 // 6. Runtime View
 include::chapters/06_runtime_view.adoc[]
 
-<<<
+
 // 7. Deployment View
 include::chapters/07_deployment_view.adoc[]
 
-<<<
+
 // 8. Cross-cutting Concepts
 include::chapters/08_concepts.adoc[]
 
-<<<
+
 // 9. Architecture Decisions
 include::chapters/09_architecture_decisions.adoc[]
 
-<<<
+
 // 10. Quality Requirements
 include::chapters/10_quality_requirements.adoc[]
 
-<<<
+
 // 11. Risks and Technical Debts
 include::chapters/11_technical_risks.adoc[]
 
-<<<
+
 // 12. Glossary
 include::chapters/12_glossary.adoc[]
 
 '''
-image::HSLU-Logo-21-klein.png[]
+image::HSLU-Logo-21-klein.png[align=center]

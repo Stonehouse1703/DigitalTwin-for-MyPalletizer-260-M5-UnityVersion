@@ -2,46 +2,116 @@ ifndef::imagesdir[:imagesdir: ../images]
 
 [[section-deployment-view]]
 == Deployment View
-////
-Content
 
-The deployment view describes:
+Die Verteilungssicht beschreibt die physische Zielumgebung, die ausführenden Hardwareknoten, die Softwarebausteine sowie die verwendeten Netzwerk- und Verbindungskanäle.
 
-1. technical infrastructure used to execute your system, with infrastructure elements like geographical locations, environments, computers, processors, channels and net topologies as well as other infrastructure elements and
+=== Infrastruktur und Verteilungsdiagramm
 
-2. mapping of (software) building blocks to that infrastructure elements.
+Das Gesamtsystem wird primär auf einem lokalen Arbeitsplatzrechner (*Host-PC*) ausgeführt. Optional ist der physische Roboterarm *MyPalletizer 260 M5* über eine serielle USB-Verbindung angeschlossen.
 
-Often systems are executed in different environments, e.g. development environment, test environment, production environment. In such cases you should document all relevant environments.
+[plantuml, target="diagram-deployment-view", format="png"]
+----
+@startuml
+skinparam componentStyle rectangle
 
-Especially document a deployment view if your software is executed as distributed system with more than one computer, processor, server or container or when you design and construct your own hardware processors and chips.
+node "Host-PC\n(Windows / Linux / macOS)" as HostPC {
+    
+    artifact "Python-Laufzeitumgebung\n(Python >= 3.12)" as PyRuntime {
+        component "Benutzerskript\n(user_script.py)" as UserScript
+        component "mypalletizer API\n(Python Package)" as PyPkg
+        component "pymycobot\n(Treiberbibliothek)" as PyMyCobotDriver
+    }
+    
+    artifact "Unity-Laufzeitumgebung\n(Standalone Executable / Editor)" as UnityRuntime {
+        component "Digital Twin Simulation\n(Unity 3D Engine)" as UnityApp
+    }
+}
 
-From a software perspective it is sufficient to capture only those elements of an infrastructure that are needed to show a deployment of your building blocks. Hardware architects can go beyond that and describe an infrastructure to any level of detail they need to capture.
+node "MyPalletizer 260 M5\n(Physische Hardware)" as HardwareNode {
+    component "M5Stack Basic Controller\n(Firmware 115200 Baud)" as M5Controller
+    component "4x Servomotoren (J1..J4)\n+ Endeffektoren (Greifer/Pumpe)" as Servos
+}
 
-Motivation
+UserScript --> PyPkg : Lokaler Aufruf
+PyPkg --> PyMyCobotDriver : Interner Aufruf
 
-Software does not run without hardware. This underlying infrastructure can and will influence a system and/or some cross-cutting concepts. Therefore, there is a need to know the infrastructure.
+PyPkg --> UnityApp : UDP / JSON (Port 5005)\nRoboterkanal (localhost)
+PyPkg --> UnityApp : UDP / JSON (Port 5006)\nWeltkanal (localhost)
 
-Form
+PyMyCobotDriver --> M5Controller : USB / Serial (115200 Baud)\nCOMx oder /dev/ttyUSBx
+M5Controller --> Servos : Interne Bus-Steuerung
 
-Maybe a highest level deployment diagram is already contained in section 3.2. as technical context with your own infrastructure as ONE black box. In this section one can zoom into this black box using additional deployment diagrams:
+@enduml
+----
 
-• UML offers deployment diagrams to express that view. Use it, probably with nested diagrams, when your infrastructure is more complex.
+=== Knoten und Infrastrukturelemente
 
-• When your (hardware) stakeholders prefer other kinds of diagrams rather than a deployment diagram, let them use any kind that is able to show nodes and channels of the infrastructure
-////
+[cols="1,1,3", options="header"]
+|===
+| Knoten / Element | Betriebssystem / Typ | Technische Beschreibung und Voraussetzungen
 
-== Infrastructure Level 1 
-////
-Describe (usually in a combination of diagrams, tables, and text):
+| **Host-PC**
+| Windows 10/11, Linux (Ubuntu 22.04+), macOS (12+)
+| Standard-Entwicklungsrechner. Führt sowohl die Python-Steuerung als auch die Unity-Simulationsanwendung aus.
 
-• distribution of a system to multiple locations, environments, computers, processors, .., as well as physical connections between them
+| **Python-Laufzeitumgebung**
+| Python 3.12 oder neuer
+| Verwaltet das installierte Paket `mypalletizer-api` sowie die Abhängigkeiten `numpy` und `pymycobot`.
 
-• important justifications or motivations for this deployment structure
+| **Unity-Laufzeitumgebung**
+| Standalone-Build oder Unity Editor
+| Führt die vorkompilierte Simulationsanwendung aus. Benötigt Unterstützung für OpenGL / DirectX / Metal sowie freie lokale UDP-Ports.
 
-• quality and/or performance features of this infrastructure
+| **MyPalletizer 260 M5**
+| Embedded System (ESP32 / M5Stack)
+| Physischer 4-Achs-Roboter mit interner Echtzeit-Servosteuerung und Relais-Ausgängen für Werkzeuge.
+|===
 
-• mapping of software artifacts to elements of this infrastructure
+=== Kommunikationskanäle
 
-For multiple environments or alternative deployments please copy and adapt this section of arc42 for all relevant environments.
-////
+[cols="1,1,1,3", options="header"]
+|===
+| Kanal | Verbindung | Format / Baudrate | Zweck und Charakteristik
 
+| **Roboterkanal**
+| UDP Socket (`127.0.0.1:5005`)
+| UTF-8 JSON Datagramme
+| Zeitkritische Übertragung von Gelenkwinkeln, LED-Farben und Werkzeugzuständen. Verbindungslos, latenzoptimiert.
+
+| **Weltkanal**
+| UDP Socket (`127.0.0.1:5006`)
+| UTF-8 JSON Datagramme
+| Übertragung von administrativen Szenenkommandos (`spawn`, `delete`, `clear`). Getrennt vom Roboterkanal zur Vermeidung von Latenzspitzen.
+
+| **Hardware-Kanal**
+| USB-zu-Serial-Verbindung
+| 8N1, `115200` Baud
+| Übertragung von Steuerbefehlen an das M5Stack-Mainboard und Empfang von Gelenkwinkeln zur Telemetrie.
+|===
+
+=== Bereitstellungs- und Deployment-Szenarien
+
+Das System unterstützt drei typische Einsatzszenarien:
+
+1. **Reine Simulationsumgebung (`virtual`):**
++
+* **Zielgruppe:** Studierende im Fernstudium, Entwickler ohne physischen Roboter.
+* **Komponenten:** Python-Skript und Unity Standalone Executable (oder Unity Editor) auf demselben Host-PC.
+* **Vorteil:** Komplett ortsunabhängig, kein Hardware-Setup erforderlich, kein Beschädigungsrisiko.
+
+2. **Hybrider Parallelbetrieb (`both`):**
++
+* **Zielgruppe:** Praktika an der HSLU, Validierung vor realen Produktionsabläufen.
+* **Komponenten:** Python-Skript, Unity-Simulation und physischer Roboterarm zeitgleich über USB verbunden.
+* **Vorteil:** Direkter visueller Echtzeitabgleich zwischen mathematischem Modell und realem Verhalten.
+
+3. **Reiner Hardwarebetrieb (`real`):**
++
+* **Zielgruppe:** Finale Ausführung fertig getesteter Steuerprogramme auf der realen Hardware.
+* **Komponenten:** Python-Skript und MyPalletizer 260 M5 (Unity muss nicht gestartet sein).
+* **Vorteil:** Minimale Systemlast, da keine 3D-Engine gerendert werden muss.
+
+=== Softwareverteilung und Paketierung
+
+* **Python-Paket (`mypalletizer-api`):** Wird über `pyproject.toml` als standardisiertes Python-Wheel gebaut und kann via `pip install .` oder im Entwicklungsmodus (`pip install -e .`) installiert werden.
+* **Unity-Anwendung:** Wird über automatisierte GitHub Actions als eigenständige Standalone-Binary für Windows (`.exe`), Linux (`.x86_64`) und macOS (`.app`) erzeugt und als Release-Artefakt bereitgestellt.
