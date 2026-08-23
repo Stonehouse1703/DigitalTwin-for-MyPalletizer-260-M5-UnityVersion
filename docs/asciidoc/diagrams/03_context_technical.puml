@@ -4,26 +4,25 @@
 actor "Benutzer-Skript\n(Python)" as UserScript
 
 rectangle "mypalletizer API (Python >= 3.12)" as API {
-    component "Robot API" as RobotAPI
     component "World API" as WorldAPI
+    component "Robot API" as RobotAPI
 }
 
-node "Unity Simulation (C# / PhysX)" as UnityNode {
-    component "UnityUdpBridge\n(:5005)" as RobotBridge
+rectangle "Unity Simulation (C# / PhysX)" as UnityNode {
     component "WorldUdpBridge\n(:5006)" as WorldBridge
+    component "UnityUdpBridge\n(:5005)" as RobotBridge
 }
 
-node "MyPalletizer 260 M5 (ESP32)" as RobotHardware {
+rectangle "MyPalletizer 260 M5 (ESP32)" as RobotHardware {
     component "Firmware Serial Driver\n(115200 Baud)" as SerialDriver
 }
 
-UserScript --> RobotAPI : In-Process Methodenaufruf\n(send_angles, pump_on, etc.)
-UserScript --> WorldAPI : In-Process Methodenaufruf\n(spawn, delete, clear, etc.)
+UserScript -down-> API : In-Process Aufrufe\n(Robot & World)
 
-RobotAPI --> RobotBridge : UDP / JSON (Port 5005)\nRoboterkanal
-WorldAPI --> WorldBridge : UDP / JSON (Port 5006)\nWeltkanal
+WorldAPI -down-> WorldBridge : UDP / JSON (:5006)\nWeltkanal
+RobotAPI -down-> RobotBridge : UDP / JSON (:5005)\nRoboterkanal
 
-RobotAPI --> SerialDriver : USB / Serial (115200 Baud)\nvia pymycobot
-SerialDriver --> RobotAPI : Telemetrie-Antwort\n(get_angles)
+RobotAPI -right-> SerialDriver : USB / Serial (115200 Baud)\nBefehle via pymycobot
+SerialDriver .left.> RobotAPI : Telemetrie (get_angles)
 
 @enduml

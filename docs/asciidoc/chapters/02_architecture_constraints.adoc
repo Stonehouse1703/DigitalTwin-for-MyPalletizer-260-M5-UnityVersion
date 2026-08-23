@@ -15,16 +15,14 @@ Die folgenden technischen, organisatorischen und konventionellen Vorgaben bilden
 | Das System ist an den physischen 4-Achs-Roboter *MyPalletizer 260 M5* von Elephant Robotics gebunden. Dessen mechanische Achsgrenzen (`J1: -160..160°`, `J2: 0..90°`, `J3: -92..60°`, `J4: -360..360°`), Drehzahlen und Endeffektoren geben die Simulationsparameter vor.
 
 | **Programmiersprache Python**
-| Die Steuerungs- und Benutzerschnittstelle muss in **Python (Version >= 3.12)** entwickelt werden, um mit den an der Hochschule eingesetzten Entwicklungs- und Lehrmaterialien kompatibel zu sein.
+| Die Steuerungs- und Benutzerschnittstelle muss in Python (Version >= 3.12) entwickelt werden.
 
 | **Simulations-Engine Unity**
-| Als 3D-Engine ist Unity (C#) festgelegt. Die Gelenkphysik muss auf der Unity-Komponente `ArticulationBody` basieren, um Mehrkörpersysteme stabil simulieren zu können.
+| Als 3D-Engine ist Unity (C#) festgelegt. 
 
 | **Plattformunabhängigkeit**
 | Sowohl das Python-Paket als auch die kompilierte Unity-Simulation müssen ohne systemspezifische Anpassungen auf Windows, Linux und macOS lauffähig sein.
 
-| **Schnittstellen und Protokolle**
-| Lokale Interprozesskommunikation erfolgt über UDP-Sockets. Die serielle Anbindung der Hardware erfordert einen USB-UART-Port mit `115200` Baud und die Bibliothek `pymycobot`.
 |===
 
 === Organisatorische Randbedingungen
@@ -34,21 +32,6 @@ Die folgenden technischen, organisatorischen und konventionellen Vorgaben bilden
 | Randbedingung | Beschreibung und Auswirkung
 
 | **Hochschul- und Semesterrahmen**
-| Das Projekt wurde als Einzelprojektarbeit im Modul APPLAI an der Hochschule Luzern innerhalb eines Semesters umgesetzt.
+| Das Projekt wurde als Einzelprojektarbeit im Modul AI-Robotics an der Hochschule Luzern innerhalb eines Semesters umgesetzt.
 
-| **Open-Source-Lizenz**
-| Der gesamte Quellcode ist unter der **MIT-Lizenz** auf GitHub veröffentlicht. Sämtliche verwendeten Drittanbieter-Bibliotheken müssen mit dieser Lizenz kompatibel sein.
-|===
-
-=== Konventionelle Randbedingungen
-
-[cols="1,3", options="header"]
-|===
-| Randbedingung | Beschreibung und Auswirkung
-
-| **Dokumentationsstandard arc42**
-| Die Architekturbeschreibung folgt strukturell und inhaltlich dem **arc42-Template**. Als Dokumentationsformat wird AsciiDoc mit PlantUML verwendet.
-
-| **Code- und Versionsrichtlinien**
-| Der Python-Quellcode folgt dem **PEP 8**-Styleguide mit Typannotationen (*Type Hints*); der Unity-Code folgt den Unity C# Coding Conventions. Die Versionskontrolle erfolgt mit Git und automatisierten GitHub Actions.
 |===

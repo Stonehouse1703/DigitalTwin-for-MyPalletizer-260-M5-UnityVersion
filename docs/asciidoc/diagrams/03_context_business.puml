@@ -3,17 +3,18 @@
 
 actor "Benutzer / Entwickler" as User
 
-rectangle "Digital Twin System\n(MyPalletizer Python API)" as DTS {
+rectangle "Digital Twin System\n(MyPalletizer Python API)" as DTS
+
+together {
+    rectangle "Unity Simulation\n(3D-Visualisierung & Physik)" as Unity
+    rectangle "MyPalletizer 260 M5\n(Physische Hardware)" as Hardware
 }
 
-rectangle "Unity Simulation\n(3D-Visualisierung & Physik)" as Unity
-rectangle "MyPalletizer 260 M5\n(Physische Hardware)" as Hardware
+User -down-> DTS : Steuert Roboter & Welt\n(Python-Skripte)
+DTS -down-> Unity : Visualisiert Bewegungen\n& manipuliert Objekte
+DTS -down-> Hardware : Führt Aktionen physisch aus
 
-User -> DTS : Steuert Roboter & Welt\n(Python-Skripte)
-DTS -> Unity : Visualisiert Bewegungen\n& manipuliert Objekte
-DTS -> Hardware : Führt Aktionen physisch aus
-
-Unity .[#7F8C8D].> User : Visuelles 3D-Feedback
-Hardware .[#7F8C8D].> User : Reale Bewegung / Sensorik
+Unity .up.> User : Visuelles 3D-Feedback
+Hardware .up.> User : Reale Rückmeldung\n& Sensorik
 
 @enduml

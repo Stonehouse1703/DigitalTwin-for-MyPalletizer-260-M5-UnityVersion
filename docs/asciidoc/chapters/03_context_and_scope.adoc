@@ -3,7 +3,7 @@ ifndef::imagesdir[:imagesdir: ../images]
 [[section-system-scope-and-context]]
 == Context and Scope
 
-Dieses Kapitel grenzt das System gegenüber externen Akteuren und angebundenen Nachbarsystemen ab. Es definiert die fachlichen Interaktionsbeziehungen (*Business Context*) sowie die technischen Kommunikationswege und Protokolle (*Technical Context*).
+Dieses Kapitel grenzt das System gegenüber externen Akteuren und angebundenen Nachbarsystemen ab. Es definiert die fachlichen Interaktionsbeziehungen (Business Context) sowie die technischen Kommunikationswege und Protokolle (Technical Context).
 
 === Business Context
 

@@ -24,12 +24,6 @@ Die Lösungsstrategie fasst die grundlegenden architektonischen Entwurfsentschei
   ** **Port `5005` (Roboterkanal):** Hochfrequente Gelenkbewegungen, LED-Farben und Werkzeugbefehle.
   ** **Port `5006` (Weltkanal):** Diskrete Ereignisse zur Objekt- und Szenenverwaltung (`spawn`, `delete`, `clear`).
 
-* **Thread-sicheres Dispatching im Engine-Loop:**
-  Da Unity Zugriffe auf die Szenenhierarchie ausschliesslich im Engine-Hauptthread (*Unity Main Thread*) erlaubt, werden empfangene UDP-Pakete in einem Hintergrund-Thread in threadsichere Warteschlangen eingereiht. Ein `CommandRunner` (Unity-Coroutine) holt die Kommandos synchron im Frame-Zyklus ab und führt sie aus.
-
 * **Mehrstufiges Schutz- und Validierungskonzept:**
   ** **Fail-Fast:** Fehlerhafte Konfigurationen (z. B. fehlender Port im Hardwarebetrieb) oder unvollständige 3D-Vektoren werden bei der Instanziierung sofort mit einer Exception abgefangen.
   ** **Software Clamping:** Gelenkwinkel, Geschwindigkeiten und LED-Farbwerte werden vor der Übertragung automatisch auf die physikalischen Grenzen des MyPalletizer 260 M5 begrenzt.
-
-* **Virtuelle Zustandshaltung (`_sim_angles`):**
-  Im Simulationsbetrieb führt der Controller den Soll-Zustand im Array `_sim_angles` lokal mit. Die Abfragemethode `get_angles()` liefert dadurch auch ohne Netzwerk-Rückkanal sofort konsistente Winkelwerte zurück.

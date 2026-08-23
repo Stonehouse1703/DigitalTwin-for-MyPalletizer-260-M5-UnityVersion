@@ -3,11 +3,9 @@ ifndef::imagesdir[:imagesdir: ../images]
 [[section-introduction-and-goals]]
 == Introduction and Goals
 
-Das Projekt **DigitalTwin for MyPalletizer 260 M5** entstand im Rahmen des Moduls Applied Artificial Intelligence (APPLAI) an der Hochschule Luzern (HSLU). 
+Ziel ist die Bereitstellung eines digitalen Zwillings für den 4-Achs-Palettierroboter MyPalletizer 260 M5. Die 3D-Simulationsumgebung ermöglicht das gefahrlose Entwickeln, Testen und Optimieren von Roboterprogrammen und Manipulationsszenarien in einer virtuellen Umgebung, bevor der Code auf der physischen Hardware ausgeführt wird. Dadurch werden Kollisionen und mechanische Beschädigungen an den realen Servomotoren verhindert.
 
-Ziel ist die Bereitstellung eines digitalen Zwillings für den 4-Achs-Palettierroboter *MyPalletizer 260 M5*. Die 3D-Simulationsumgebung ermöglicht das gefahrlose Entwickeln, Testen und Optimieren von Roboterprogrammen und Manipulationsszenarien in einer virtuellen Umgebung, bevor der Code auf der physischen Hardware ausgeführt wird. Dadurch werden Kollisionen und mechanische Beschädigungen an den realen Servomotoren verhindert.
-
-Das System löst den Engpass der beschränkten Hardwareverfügbarkeit im Lehrbetrieb, indem es Studierenden das ortsunabhängige Programmieren ermöglicht. Als quelloffenes Projekt (MIT-Lizenz) steht die Lösung zudem externen Forschenden und Entwicklern zur Verfügung.
+Das System löst den Engpass der beschränkten Hardwareverfügbarkeit im Lehrbetrieb, indem es Studierenden das ortsunabhängige Programmieren ermöglicht. Als quelloffenes Projekt steht die Lösung zudem externen Forschenden und Entwicklern zur Verfügung.
 
 === Functional Requirements
 
@@ -25,18 +23,12 @@ Das System löst den Engpass der beschränkten Hardwareverfügbarkeit im Lehrbet
 | Visuelle und funktionale Nachbildung der Endeffektoren: Parallelgreifer (*Gripper*) und Vakuumpumpe (*Suction Pump*).
 
 | **Dynamische Szenenverwaltung**
-| Erzeugen, Manipulieren und Löschen geometrischer Objekte (Würfel, Kugeln, Zylinder) zur Laufzeit sowie Laden vordefinierter Übungsszenarien (*Presets*).
-
-| **Flexible Betriebsmodi**
-| Unterstützung von drei Betriebsarten: `virtual` (reine Simulation), `real` (reine Hardware) und `both` (synchroner Parallelbetrieb zum direkten Abgleich).
-
-| **Schutz- und Validierungslogik**
-| Automatisches Begrenzen von Gelenkwinkeln, Geschwindigkeiten und LED-Farbwerten auf die mechanischen Spezifikationen des Roboters (*Software Clamping*).
+| Erzeugen, Manipulieren und Löschen geometrischer Objekte (Würfel, Kugeln, Zylinder) zur Laufzeit sowie Laden vordefinierter Übungsszenarien (Presets).
 |===
 
 === Quality Goals
 
-Die Architektur priorisiert die folgenden Qualitätsziele gemäss ISO/IEC 25010:
+Die Architektur priorisiert die folgenden Qualitätsziele:
 
 [cols="1,2,2,3", options="header"]
 |===
@@ -55,7 +47,7 @@ Die Architektur priorisiert die folgenden Qualitätsziele gemäss ISO/IEC 25010:
 | **3**
 | **Zuverlässigkeit & Fehlertoleranz**
 | Ungültige Parameter oder temporärer Paketverlust dürfen weder das Programm abbrechen noch zu unkontrollierten Bewegungen führen.
-| Parameterprüfung beim API-Aufruf (*Fail-Fast*), Software-Clamping für Grenzwerte und idempotente Zustandspakete.
+| Parameterprüfung beim API-Aufruf (Fail-Fast), Software-Clamping für Grenzwerte und idempotente Zustandspakete.
 
 | **4**
 | **Wartbarkeit & Modularität**
@@ -85,10 +77,6 @@ Die Architektur priorisiert die folgenden Qualitätsziele gemäss ISO/IEC 25010:
 | **Entwickler**
 | Colin Felber (HSLU)
 | Modulare Architektur, hohe Wartbarkeit und erfolgreicher Modulabschluss.
-
-| **Nachfolgeprojekte**
-| Zukünftige Projektgruppen (z. B. AI-ROBOTICS)
-| Dokumentierte Architekturentscheidungen (ADRs), klare Schnittstellen und einfache Erweiterbarkeit.
 
 | **Open-Source-Community**
 | Externe Robotik-Entwickler

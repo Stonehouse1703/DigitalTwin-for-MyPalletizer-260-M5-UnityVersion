@@ -4,9 +4,12 @@ skinparam defaultFontName "Arial"
 skinparam defaultFontSize 12
 skinparam roundCorner 8
 skinparam shadowing false
-skinparam dpi 300
+skinparam dpi 200
 skinparam arrowColor #2C3E50
 skinparam arrowThickness 1.2
+skinparam linetype ortho
+skinparam nodesep 50
+skinparam ranksep 50
 
 skinparam rectangle {
     BackgroundColor #FFFFFF
