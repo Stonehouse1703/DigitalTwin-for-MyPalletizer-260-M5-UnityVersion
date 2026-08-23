@@ -3,66 +3,66 @@ ifndef::imagesdir[:imagesdir: ../images]
 [[section-glossary]]
 == Glossary
 
-Die folgende Tabelle erläutert die im Dokument verwendeten Fachbegriffe, Akronyme, Modulnamen und Softwarekonzepte in alphabetischer Reihenfolge:
+Die folgende Tabelle erläutert die im Dokument verwendeten Fachbegriffe, Modulnamen und Akronyme in alphabetischer Reihenfolge:
 
 [cols="1,3", options="header"]
 |===
 | Begriff / Akronym | Definition und Projektkontext
 
 | **AI-ROBOTICS**
-| Folgemodul an der Hochschule Luzern, in welchem der digitale Zwilling und die Python-API für praxisnahe Robotik- und KI-Aufgaben weiterverwendet werden.
+| Folgemodul an der Hochschule Luzern, in welchem der digitale Zwilling und die Python-API für praktische Robotik- und KI-Aufgaben eingesetzt werden.
 
 | **APPLAI**
-| *Applied Artificial Intelligence*. Ausbildungsmodul an der Hochschule Luzern, in dessen Rahmen dieser digitale Zwilling konzipiert und implementiert wurde.
+| *Applied Artificial Intelligence*. Ausbildungsmodul an der Hochschule Luzern, in dessen Rahmen dieser digitale Zwilling entwickelt wurde.
 
 | **ArticulationBody**
-| Spezialisierte Unity-Physikkomponente zur Modellierung verbundener Starrkörperketten (Gelenke). Verhindert im Gegensatz zu Standard-Rigidbodys numerische Gelenkinstabilitäten und Dehnungen.
+| Spezialisierte Unity-Physikkomponente zur Modellierung verbundener Starrkörperketten (Gelenke) mittels Featherstone-Algorithmus.
 
 | **Clamping (Software-Begrenzung)**
-| Automatisches Begrenzen von numerischen Werten (Gelenkwinkel, Geschwindigkeiten, RGB-Werte) auf physikalisch und mechanisch sichere Minimal- und Maximalgrenzen.
+| Automatisches Begrenzen numerischer Parameter (Gelenkwinkel, Geschwindigkeiten, RGB-Werte) auf physikalisch und mechanisch sichere Grenzen.
 
 | **Coroutine**
-| C#-Sprachmittel in Unity, das es ermöglicht, die Ausführung einer Methode über mehrere Frames hinweg zu pausieren (`yield return`), um zeitgesteuerte oder asynchrone Abläufe ohne Thread-Blockaden umzusetzen.
+| C#-Sprachmittel in Unity zur Ausführung von asynchronen Abläufen über mehrere Frames hinweg (`yield return`) ohne Thread-Blockaden.
 
 | **Digitaler Zwilling (Digital Twin)**
-| Virtuelles, softwarebasiertes Abbild eines physischen Systems (hier des MyPalletizer 260 M5), das dessen Kinematik, Werkzeuge und Interaktionen in einer 3D-Simulation in Echtzeit nachbildet.
+| Softwarebasiertes, virtuelles 3D-Abbild des MyPalletizer 260 M5 zur Echtzeitsimulation von Kinematik, Werkzeugen und Umgebungsinteraktionen.
 
 | **Endeffektor**
-| Das am Ende der kinematischen Kette montierte Werkzeug des Roboterarms. In diesem Projekt werden ein mechanischer Parallelgreifer (*Gripper*) sowie eine Vakuumpumpe (*Suction Pump*) unterstützt.
+| Am Roboterarm montiertes Werkzeug: Parallelgreifer (*Gripper*) oder Vakuumpumpe (*Suction Pump*).
 
 | **Fail-Fast**
-| Entwurfsprinzip, bei dem fehlerhafte Konfigurationen oder unzulässige Parameter sofort beim ersten Auftreten durch eine Exception abgefangen werden, anstatt fehlerhafte Zustände weiterzuleiten.
+| Entwurfsprinzip, bei dem fehlerhafte Parameter sofort beim Methodenaufruf durch eine Exception abgefangen werden.
 
 | **GrabbableObject**
-| Unity-Komponente, die Umgebungsobjekte als interaktionsfähig kennzeichnet, sodass Greifer und Vakuumpumpe diese erkennen und kinematisch aufnehmen können.
+| Unity-Komponente zur Kennzeichnung von Objekten, die von Greifer oder Vakuumpumpe aufgenommen werden können.
 
 | **GripperDownConstraint**
-| Unity-Skriptkomponente, die geometrisch sicherstellt, dass der Werkzeugkopf bei beliebigen Armstellungen vertikal nach unten ausgerichtet bleibt (Palettier-Mechanik).
+| Unity-Komponente zur softwareseitigen Ausrichtungskompensation, damit der Werkzeugkopf bei jeder Armstellung vertikal bleibt (Palettiermechanik).
 
 | **HSLU**
 | Hochschule Luzern (Departement Informatik).
 
 | **JSON**
-| *JavaScript Object Notation*. Leichtgewichtiges, textbasiertes Datenformat, das zur Strukturierung der UDP-Nachrichten zwischen Python und Unity verwendet wird.
+| *JavaScript Object Notation*. Textbasiertes Datenformat zur Strukturierung der UDP-Nachrichten zwischen Python und Unity.
 
 | **Kinematische Kette (4-DOF)**
-| Folge von starr verbundenen Gliedern mit vier rotatorischen Freiheitsgraden (*Degrees of Freedom*), welche die räumliche Bewegung des MyPalletizer 260 M5 definieren.
+| Reihe starr verbundener Roboterglieder mit vier rotatorischen Freiheitsgraden (*Degrees of Freedom*).
 
 | **MyPalletizer 260 M5**
-| 4-Achs-Palettierroboterarm der Firma *Elephant Robotics*, basierend auf der M5Stack-Mikrocontroller-Plattform (ESP32).
+| 4-Achs-Palettierroboterarm der Firma *Elephant Robotics*, basierend auf dem M5Stack-Mikrocontroller (ESP32).
 
 | **Open-Loop-Steuerung**
-| Steuerungsansatz ohne kontinuierlichen Regelkreis-Rückkanal; Befehle werden gesendet, ohne dass eine explizite Empfangsquittung für jeden Einzelschritt zurückgesendet wird.
+| Steuerungsansatz ohne kontinuierlichen Rückkanal; Kommandos werden ohne explizite Empfangsquittung abgesetzt.
 
 | **Preset**
-| Vordefiniertes, reproduzierbares Simulationsszenario (z. B. `three_blocks`, `sorting_task`), das programmgesteuert in die Unity-Szene geladen werden kann.
+| Vordefiniertes, reproduzierbares Simulationsszenario (z. B. `three_blocks`), das programmgesteuert in die Unity-Szene geladen werden kann.
 
 | **pymycobot**
-| Offizielle Python-Treiberbibliothek von Elephant Robotics zur seriellen Kommunikation mit MyPalletizer- und MyCobot-Roboterarmen.
+| Offizielle Python-Treiberbibliothek von Elephant Robotics zur seriellen Steuerung des MyPalletizer 260 M5.
 
 | **UDP**
-| *User Datagram Protocol*. Verbindungsloses, latenzarmes Netzwerkprotokoll zur paketbasierten Datenübertragung über IP-Netzwerke ohne Handshake-Overhead.
+| *User Datagram Protocol*. Verbindungsloses, latenzarmes Netzwerkprotokoll zur Übertragung von Steuerpaketen.
 
 | **Unity**
-| Professionelle 3D-Echtzeit-Entwicklungs- und Simulations-Engine, in welcher der digitale Zwilling und die grafische Benutzerschnittstelle realisiert sind.
+| 3D-Echtzeit- und Physik-Engine zur Visualisierung und Simulation des Roboters.
 |===

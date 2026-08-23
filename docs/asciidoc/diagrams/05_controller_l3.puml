@@ -1,0 +1,54 @@
+@startuml
+!include style.puml
+
+class MyPalletizerController {
+    - mode: str
+    - mc: Optional[MyPalletizer260]
+    - sock: Optional[socket]
+    - udp_ip: str
+    - udp_port: int
+    - _sim_angles: list[float]
+    - _JOINT_LIMITS: dict
+    __
+    + send_angles(j1, j2, j3, j4, speed=40)
+    + send_angle(id, degree, speed=40)
+    + sync_move_joints(j1, j2, j3, j4, speed=40)
+    + set_color(r, g, b)
+    + get_angles() : str
+    + set_end_effector(tool)
+    + set_gripper_state(flag, speed, _type_1)
+    + pump_on()
+    + pump_off()
+    + sleep(seconds)
+    + close()
+    __
+    - _send_udp(payload: dict)
+    - _clamp(joint: str, angle: float) : float
+    - _clamp_speed(speed: int) : int
+    - _clamp_rgb(r, g, b) : tuple
+}
+
+class MyPalletizer260 <<pymycobot>> {
+    + power_on()
+    + send_angles(angles, speed)
+    + sync_send_angles(angles, speed)
+    + set_color(r, g, b)
+    + get_angles() : list
+    + set_gripper_state(flag, speed, _type_1)
+    + set_basic_output(pin, state)
+    + close()
+}
+
+class protocol <<module>> {
+    + build_move_msg(...) : dict
+    + sync_build_move_msg(...) : dict
+    + build_led_msg(...) : dict
+    + build_set_end_effector_msg(...) : dict
+    + build_set_gripper_state_msg(...) : dict
+    + build_pump_msg(...) : dict
+}
+
+MyPalletizerController "1" o-- "0..1" MyPalletizer260 : Hardwaretreiber
+MyPalletizerController ..> protocol : Nutzt Message Builder
+
+@enduml

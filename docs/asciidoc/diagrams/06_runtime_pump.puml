@@ -1,0 +1,63 @@
+@startuml
+!include style.puml
+autonumber
+
+actor "Benutzer" as User
+participant "Robot" as Robot
+participant "MyPalletizerController" as MPC
+participant "pymycobot" as PMC
+database "Unity Simulation" as Unity
+participant "UnityUdpBridge" as UUB
+participant "RobotToolManager" as RTM
+participant "SuctionPumpController" as SPC
+participant "GrabbableObject" as GO
+
+User -> Robot : pump_on()
+activate Robot
+
+Robot -> MPC : pump_on()
+activate MPC
+
+group Simulations-Pfad (UDP Port 5005)
+    MPC -> Unity : UDP sendto (type: "pump", enabled: true)
+    activate Unity
+    Unity -> UUB : _commandQueue.Enqueue(cmd)
+end
+
+group Hardware-Pfad (Serial)
+    MPC -> PMC : set_basic_output(2, 0)
+    MPC -> PMC : set_basic_output(5, 0)
+end
+
+MPC --> Robot : fertig
+deactivate MPC
+Robot --> User : Werkzeug aktiviert
+deactivate Robot
+
+== Ausführung in Unity ==
+Unity -> UUB : CommandRunner()
+activate UUB
+UUB -> UUB : cmd = _commandQueue.Dequeue()
+UUB -> RTM : SetPump(true)
+activate RTM
+RTM -> SPC : PumpOn()
+activate SPC
+
+SPC -> SPC : Setze Visuals (pumpVisualOn aktiv)
+SPC -> SPC : hits = Physics.OverlapSphere(attachPoint, suctionRadius)
+alt GrabbableObject im Erfassungsbereich
+    SPC -> GO : AttachTo(attachPoint)
+    activate GO
+    GO -> GO : isKinematic=true, parent=attachPoint
+    GO --> SPC : Objekt fixiert
+    deactivate GO
+end
+
+SPC --> RTM : fertig
+deactivate SPC
+RTM --> UUB : fertig
+deactivate RTM
+deactivate UUB
+deactivate Unity
+
+@enduml

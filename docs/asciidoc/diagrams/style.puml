@@ -1,0 +1,52 @@
+' Gemeinsames Styling für alle PlantUML-Diagramme
+!theme plain
+skinparam defaultFontName "Arial"
+skinparam defaultFontSize 12
+skinparam roundCorner 8
+skinparam shadowing false
+skinparam dpi 200
+skinparam arrowColor #2C3E50
+skinparam arrowThickness 1.2
+skinparam linetype ortho
+skinparam nodesep 50
+skinparam ranksep 50
+
+skinparam rectangle {
+    BackgroundColor #FFFFFF
+    BorderColor #2C3E50
+    BorderThickness 1.2
+}
+
+skinparam component {
+    BackgroundColor #F8F9FA
+    BorderColor #2C3E50
+    BorderThickness 1.2
+}
+
+skinparam node {
+    BackgroundColor #F8F9FA
+    BorderColor #2C3E50
+    BorderThickness 1.2
+}
+
+skinparam actor {
+    BackgroundColor #EAECEE
+    BorderColor #2C3E50
+}
+
+skinparam class {
+    BackgroundColor #FFFFFF
+    BorderColor #2C3E50
+    HeaderBackgroundColor #EAEDED
+    BorderThickness 1.2
+}
+
+skinparam sequence {
+    LifeLineBorderColor #2C3E50
+    LifeLineBackgroundColor #EAECEE
+    ParticipantBorderColor #2C3E50
+    ParticipantBackgroundColor #F8F9FA
+    BoxBorderColor #BDC3C7
+    BoxBackgroundColor #FAFAFA
+    GroupBorderColor #7F8C8D
+}

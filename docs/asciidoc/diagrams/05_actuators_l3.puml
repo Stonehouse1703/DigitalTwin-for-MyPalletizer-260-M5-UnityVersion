@@ -1,0 +1,36 @@
+@startuml
+!include style.puml
+
+class MyPalletizerArticulationAdapter {
+    + j1: ArticulationJointActuator
+    + j2: ArticulationJointActuator
+    + j3: ArticulationJointActuator
+    + j4: ArticulationJointActuator
+    __
+    + MoveJointsAsync(a1, a2, a3, a4, speed)
+    + MoveJointsSync(a1, a2, a3, a4, speed, epsDeg = 0.5) : IEnumerator
+}
+
+class ArticulationJointActuator {
+    + axis: DriveAxis = DriveAxis.X
+    + speedScale: float = 1.5
+    + minDegPerSec: float = 8.0
+    - _ab: ArticulationBody
+    - _moveCo: Coroutine
+    __
+    + MoveToAsync(targetDeg, speed)
+    + MoveTo(targetDeg, speed) : IEnumerator
+    + GetCurrentAngleDeg() : float
+    + IsAtTarget(targetDeg, epsDeg = 0.5) : bool
+    + Stop()
+}
+
+class ArticulationBody <<Unity Component>> {
+    + jointPosition: ReadOnlySpan<float>
+    + xDrive: ArticulationDrive
+}
+
+MyPalletizerArticulationAdapter "1" *-- "4" ArticulationJointActuator : koordiniert
+ArticulationJointActuator "1" o-- "1" ArticulationBody : steuert physikalisch
+
+@enduml

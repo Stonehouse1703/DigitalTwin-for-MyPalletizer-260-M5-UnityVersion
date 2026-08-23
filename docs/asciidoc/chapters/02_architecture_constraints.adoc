@@ -3,36 +3,35 @@ ifndef::imagesdir[:imagesdir: ../images]
 [[section-architecture-constraints]]
 == Architecture Constraints
 
-Die folgenden technischen, organisatorischen und konventionellen Randbedingungen schränken den Entwurfs- und Implementierungsspielraum des digitalen Zwillings ein. Sie bilden die unveränderlichen Rahmenparameter des Projekts.
+Die folgenden technischen, organisatorischen und konventionellen Vorgaben bilden den unveränderlichen Rahmen für die Architektur des digitalen Zwillings.
 
 === Technische Randbedingungen
 
 [cols="1,3", options="header"]
 |===
-| Randbedingung | Erläuterung und Hintergrund
+| Randbedingung | Beschreibung und Auswirkung
 
-| **Hardware: MyPalletizer 260 M5**
-| Das Gesamtsystem ist auf den 4-Achs-Palettierroboter *MyPalletizer 260 M5* von Elephant Robotics ausgelegt. Die kinematische Kette, die Gelenkgrenzen (`J1` bis `J4`), die Geschwindigkeiten und die ansteuerbaren Endeffektoren (Greifer und Vakuumpumpe) sind durch die physische Hardware fest vorgegeben.
+| **Hardware-Plattform**
+| Das System ist an den physischen 4-Achs-Roboter *MyPalletizer 260 M5* von Elephant Robotics gebunden. Dessen mechanische Achsgrenzen (`J1: -160..160°`, `J2: 0..90°`, `J3: -92..60°`, `J4: -360..360°`), Drehzahlen und Endeffektoren geben die Simulationsparameter vor.
 
-| **Programmiersprache Python (>= 3.12)**
-| Die Steuerungsschicht und die öffentliche Programmierschnittstelle (API) müssen in aktuellem Standard-Python implementiert werden. Dies entspricht dem Ausbildungsstandard an der HSLU und ermöglicht eine nahtlose Integration in bestehende Lehrmodule.
+| **Programmiersprache Python**
+| Die Steuerungs- und Benutzerschnittstelle muss in Python (Version >= 3.12) entwickelt werden.
 
-| **Simulations-Engine Unity (C#)**
-| Für die visuelle 3D-Darstellung und die Gelenkphysik ist die Game-Engine Unity (mit C#) vorgegeben. Unity stellt mit der `ArticulationBody`-Komponente eine spezialisierte Physiklösung für mehrgliedrige kinematische Ketten bereit.
+| **Simulations-Engine Unity**
+| Als 3D-Engine ist Unity (C#) festgelegt. 
 
-| **Betriebssystem- und Plattformunabhängigkeit**
-| Da Studierende und Dozierende unterschiedliche Betriebssysteme (Windows, Linux, macOS) einsetzen, müssen sowohl das Python-Paket als auch die kompilierte Unity-Anwendung auf allen drei Plattformen ohne manuelle Anpassungen lauffähig sein.
+| **Plattformunabhängigkeit**
+| Sowohl das Python-Paket als auch die kompilierte Unity-Simulation müssen ohne systemspezifische Anpassungen auf Windows, Linux und macOS lauffähig sein.
+
 |===
 
 === Organisatorische Randbedingungen
 
 [cols="1,3", options="header"]
 |===
-| Randbedingung | Erläuterung und Hintergrund
+| Randbedingung | Beschreibung und Auswirkung
 
-| **Hochschulkontext HSLU**
-| Das Projekt wurde als Semesterarbeit im Modul AI-ROBOTICS an der Hochschule Luzern entwickelt.
+| **Hochschul- und Semesterrahmen**
+| Das Projekt wurde als Einzelprojektarbeit im Modul AI-Robotics an der Hochschule Luzern innerhalb eines Semesters umgesetzt.
 
-| **Ressourcen und Zeitrahmen**
-| Die Konzeption, Entwicklung und Dokumentation erfolgte durch einen einzelnen Entwickler (Colin Felber) innerhalb eines regulären Semesterzeitraums. Dies erforderte eine klare Priorisierung der Kernfunktionalitäten.
 |===

@@ -1,0 +1,40 @@
+@startuml
+!include style.puml
+autonumber
+
+actor "Benutzer" as User
+participant "Robot" as Robot
+participant "MyPalletizerController" as MPC
+participant "pymycobot" as PMC
+database "Unity Simulation" as Unity
+
+User -> Robot : Robot(mode=BOTH, port="/dev/ttyUSB0")
+activate Robot
+
+Robot -> Robot : _validate(config)
+activate Robot #EAECEE
+deactivate Robot
+
+Robot -> MPC : MyPalletizerController(mode="both", port="/dev/ttyUSB0", ...)
+activate MPC
+
+MPC -> PMC : MyPalletizer260("/dev/ttyUSB0", 115200)
+activate PMC
+PMC --> MPC : Verbindung hergestellt
+deactivate PMC
+
+MPC -> PMC : power_on()
+activate PMC
+deactivate PMC
+
+MPC -> MPC : socket(AF_INET, SOCK_DGRAM) (Port 5005)
+activate MPC #EAECEE
+deactivate MPC
+
+MPC --> Robot : Controller initialisiert
+deactivate MPC
+
+Robot --> User : Robot-Instanz betriebsbereit
+deactivate Robot
+
+@enduml

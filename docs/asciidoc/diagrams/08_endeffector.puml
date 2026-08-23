@@ -1,0 +1,29 @@
+@startuml
+!include style.puml
+
+state "Werkzeugauswahl" as ToolSelect {
+    [*] --> GripperAktiv : set_end_effector("gripper")
+    [*] --> PumpAktiv : set_end_effector("pump")
+    GripperAktiv --> PumpAktiv : set_end_effector("pump")
+    PumpAktiv --> GripperAktiv : set_end_effector("gripper")
+}
+
+state GripperAktiv {
+    state "Greifer Geöffnet" as G_Open
+    state "Greifer Geschlossen" as G_Closed
+
+    [*] --> G_Open
+    G_Open --> G_Closed : set_gripper_state(1)\n[OverlapSphere -> AttachTo]
+    G_Closed --> G_Open : set_gripper_state(0 / 254)\n[Detach]
+}
+
+state PumpAktiv {
+    state "Pumpe Deaktiviert" as P_Off
+    state "Pumpe Aktiviert" as P_On
+
+    [*] --> P_Off
+    P_Off --> P_On : pump_on()\n[OverlapSphere -> AttachTo]
+    P_On --> P_Off : pump_off()\n[Detach]
+}
+
+@enduml

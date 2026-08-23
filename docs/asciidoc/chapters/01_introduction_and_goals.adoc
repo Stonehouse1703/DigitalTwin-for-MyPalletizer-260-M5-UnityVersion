@@ -3,81 +3,82 @@ ifndef::imagesdir[:imagesdir: ../images]
 [[section-introduction-and-goals]]
 == Introduction and Goals
 
-Das Projekt **DigitalTwin for MyPalletizer 260 M5** entstand im Rahmen des Moduls Applied Artificial Intelligence (APPLAI) an der Hochschule Luzern (HSLU). 
+Ziel ist die Bereitstellung eines digitalen Zwillings für den 4-Achs-Palettierroboter MyPalletizer 260 M5. Die 3D-Simulationsumgebung ermöglicht das gefahrlose Entwickeln, Testen und Optimieren von Roboterprogrammen und Manipulationsszenarien in einer virtuellen Umgebung, bevor der Code auf der physischen Hardware ausgeführt wird. Dadurch werden Kollisionen und mechanische Beschädigungen an den realen Servomotoren verhindert.
 
-Ziel des Projekts ist es, den 4-Achs-Roboterarm MyPalletizer 260 M5 in einer virtuellen 3D-Simulationsumgebung vollständig abbilden und programmieren zu können. Dadurch lassen sich Bewegungsabläufe, Pick-and-Place-Szenarien und Werkzeugsteuerungen gefahrlos simulieren und optimieren, bevor sie auf der physischen Hardware ausgeführt werden. Dies minimiert das Risiko mechanischer Beschädigungen und teurer Kollisionen.
-
-Ein wesentlicher Treiber des Projekts ist die begrenzte Hardwareverfügbarkeit. Dies da an der Hochschule nur zwei physische Roboterarme für den Unterricht zur Verfügung stehen, ermöglicht der digitale Zwilling allen Studierenden das orts- und zeitunabhängige Entwickeln und Testen von Steuerungsprogrammen. Als Open-Source-Projekt soll die Software zudem der Robotik-Community zugänglich gemacht werden.
+Das System löst den Engpass der beschränkten Hardwareverfügbarkeit im Lehrbetrieb, indem es Studierenden das ortsunabhängige Programmieren ermöglicht. Als quelloffenes Projekt steht die Lösung zudem externen Forschenden und Entwicklern zur Verfügung.
 
 === Functional Requirements
-
-Das System erfüllt folgende funktionale Kernanforderungen:
 
 [cols="1,3", options="header"]
 |===
 | Anforderung | Beschreibung
 
 | **3D-Visualisierung**
-| Der digitale Zwilling stellt den Roboterarm, seine Gelenkbewegungen und seine Arbeitsumgebung in Echtzeit in einer 3D-Simulation (Unity) dar.
+| Darstellung der Robotergeometrie, Gelenkbewegungen und Umgebungsobjekte in einer echtzeitfähigen 3D-Simulation (Unity).
 
-| **Python-API**
-| Die Steuerung des Roboters erfolgt über die gleichen Befehle, die auch für die physische Hardware verwendet werden. Dadurch können Steuerungsskripte sowohl in der Simulation als auch auf dem realen Roboter ausgeführt werden, ohne dass Codeänderungen erforderlich sind.
+| **Einheitliche Programmierschnittstelle**
+| Bereitstellung einer Python-API, die identische Steuerbefehle für Simulation und physische Hardware akzeptiert, sodass Steuerungsskripte ohne Codeanpassung übertragbar sind.
 
-| **Werkzeugunterstützung (Endeffektoren)**
-| Die Simulation bildet die verfügbaren Werkzeuge visuell und funktional ab: den Parallelgreifer (Gripper) zum mechanischen Greifen sowie die Vakuumpumpe (Suction Pump) zum Ansaugen von Objekten.
+| **Werkzeugunterstützung**
+| Visuelle und funktionale Nachbildung der Endeffektoren: Parallelgreifer (*Gripper*) und Vakuumpumpe (*Suction Pump*).
 
-| **Dynamische Simulationswelt**
-| Benutzer können über eine API geometrische Objekte (Würfel, Kugeln, Zylinder) zur Laufzeit in die virtuelle Szene einfügen, gezielt löschen oder vordefinierte Übungsszenarien (Presets) laden.
-
+| **Dynamische Szenenverwaltung**
+| Erzeugen, Manipulieren und Löschen geometrischer Objekte (Würfel, Kugeln, Zylinder) zur Laufzeit sowie Laden vordefinierter Übungsszenarien (Presets).
 |===
 
 === Quality Goals
 
-Die Systemarchitektur orientiert sich an den folgenden vier Qualitätszielen:
+Die Architektur priorisiert die folgenden Qualitätsziele:
 
-[cols="1,1,2,3", options="header"]
+[cols="1,2,2,3", options="header"]
 |===
-| Priorität | Qualitätsziel | Konkretes Szenario | Architektonische Massnahme
+| Rang | Qualitätsmerkmal | Szenario | Architektonische Massnahme
 
 | **1**
-| **Austauschbarkeit**
-| Ein Entwickler erstellt ein Steuerungsskript in Python. Dasselbe Skript soll ohne Codeanpassungen die Simulation, den realen Roboter oder beide Systeme synchron ansteuern können.
-| Kapselung der Zielsysteme hinter einem Fassaden- und Adaptermuster (`Robot`, `MyPalletizerController`), wodurch die modusspezifische Verteilung intern erfolgt.
+| **Interoperabilität & Austauschbarkeit**
+| Ein Steuerungsskript soll wahlweise die Simulation, den realen Roboter oder beide Systeme ansteuern können.
+| Kapselung der Zielsysteme hinter einer einheitlichen Fassade (`Robot`), welche die modusspezifische Verteilung intern vornimmt.
 
 | **2**
-| **Zeitverhalten**
-| Kontinuierliche Bewegungsbefehle sollen flüssig und ohne spürbare Verzögerung in der 3D-Simulation visualisiert werden.
-| Verwendung von verbindungsloser UDP-Kommunikation mit vollständigen Zustandspaketen sowie Entkopplung von Netzwerkempfang und Rendering über eine Thread-sichere Warteschlange in Unity.
+| **Zeitverhalten & Latenz**
+| Kontinuierliche Gelenkbewegungen sollen flüssig und ohne sichtbare Verzögerung in der 3D-Szene visualisiert werden.
+| Verwendung von verbindungslosen UDP-Datagrammen mit absoluten Zustandswerten sowie Entkopplung des Netzwerkempfangs vom Rendering über eine interne Warteschlange.
 
 | **3**
 | **Zuverlässigkeit & Fehlertoleranz**
-| Ungültige Parameter (z. B. Gelenkwinkel ausserhalb des zulässigen Bereichs) oder Netzwerkunterbrüche dürfen weder zum Systemabsturz noch zu unkontrollierten Hardwarebewegungen führen.
-| Implementierung einer strikten Validierungsschicht (Fail-Fast) in Python sowie einer fehlertoleranten Deserialisierung auf Unity-Seite.
+| Ungültige Parameter oder temporärer Paketverlust dürfen weder das Programm abbrechen noch zu unkontrollierten Bewegungen führen.
+| Parameterprüfung beim API-Aufruf (Fail-Fast), Software-Clamping für Grenzwerte und idempotente Zustandspakete.
 
 | **4**
 | **Wartbarkeit & Modularität**
-| Neue Werkzeuge, Umgebungsobjekte oder Übungsszenarien sollen ergänzt werden können, ohne die bestehende Kinematik- oder Netzwerkarchitektur verändern zu müssen.
-| Strikte Trennung der Zuständigkeiten (*Separation of Concerns*) zwischen Robotersteuerung (`Robot`) und Umgebungsverwaltung (`World`) auf separaten Netzwerkports (`5005` und `5006`).
+| Neue Werkzeuge oder Simulationsszenarien sollen ergänzt werden können, ohne die Kernkinematik zu verändern.
+| Strikte Funktionstrennung zwischen Robotersteuerung (`Robot`) und Umgebungsverwaltung (`World`) über getrennte Netzwerkkanäle.
 
+| **5**
+| **Portabilität**
+| Das Python-Paket und die Unity-Simulation müssen unter Windows, Linux und macOS lauffähig sein.
+| Verzicht auf plattformspezifische Bibliotheken und Bereitstellung plattformunabhängiger Builds.
 |===
 
 === Stakeholders
 
-Die folgende Tabelle führt die wichtigsten Personengruppen und Rollen auf, die Anforderungen an das System stellen oder mit dessen Architektur arbeiten:
-
 [cols="1,2,2", options="header"]
 |===
-| Stakeholder | Rolle | Interessen und Erwartungen
+| Rolle | Person / Gruppe | Hauptinteresse und Erwartung
 
-| **Studierende der HSLU**
-| Primäre Endnutzer
-| Intuitive Python-API, verständliche Codebeispiele,einfache Installation, gefahrloses und ortsunabhängiges Testen von Robotik-Algorithmen.
+| **Studierende**
+| Endnutzer an der HSLU
+| Intuitive Python-API, verständliche Beispiele, gefahrloses Testen ohne Hardwarerisiko.
 
-| **Dozierende (Prof. Dr. Jana Koehler)**
-| Auftraggeberin und Prüferin
-| Stabiles und reproduzierbares Werkzeug für Vorlesungen und Aufgaben, nachvollziehbare Architektur und saubere arc42-Dokumentation.
+| **Dozierende**
+| Prof. Dr. Jana Koehler (HSLU)
+| Zuverlässiges Werkzeug für Vorlesung und Praktika, saubere arc42-Dokumentation, reproduzierbare Übungsaufgaben.
 
-| **Entwickler (Colin Felber)**
-| Softwarearchitekt und Implementierer
-| Klare Modulstruktur, hohe Codequalität, einfache Erweiterbarkeit und erfolgreicher Projektabschluss im Modul APPLAI.
+| **Entwickler**
+| Colin Felber (HSLU)
+| Modulare Architektur, hohe Wartbarkeit und erfolgreicher Modulabschluss.
+
+| **Open-Source-Community**
+| Externe Robotik-Entwickler
+| Standardisierte Installation via pip, offene MIT-Lizenz und transparente Protokolldokumentation.
 |===

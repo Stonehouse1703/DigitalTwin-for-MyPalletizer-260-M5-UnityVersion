@@ -1,0 +1,34 @@
+@startuml
+!include style.puml
+
+|Hintergrund-Thread (UdpClient)|
+start
+:Empfange Byte-Array über UDP;
+:Deserialisiere JSON zu Command-Objekt;
+:Sperre Mutex (lock _lock);
+:Reihe Command in Warteschlange ein;
+:Entsperre Mutex;
+detach
+
+|Unity Hauptthread (CommandRunner Coroutine)|
+start
+repeat
+    :Sperre Mutex (lock _lock);
+    if (Warteschlange enthält Elemente?) then (ja)
+        :Hole nächstes Command aus Queue;
+        :Entsperre Mutex;
+        if (Command-Typ?) then (sync_move_joints)
+            :Starte Coroutine MoveJointsSync();
+            :Warte mit yield return bis alle Achsen am Ziel (epsDeg <= 0.5°);
+        elseif (move_joints) then
+            :Rufe MoveJointsAsync() auf;
+        elseif (Werkzeug / LED) then
+            :Führe Werkzeug- oder LED-Aktion aus;
+        endif
+    else (nein)
+        :Entsperre Mutex;
+        :Warte auf nächsten Frame (yield return null);
+    endif
+repeat while (Applikation aktiv)
+stop
+@enduml

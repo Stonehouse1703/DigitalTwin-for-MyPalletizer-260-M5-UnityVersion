@@ -3,80 +3,27 @@ ifndef::imagesdir[:imagesdir: ../images]
 [[section-solution-strategy]]
 == Solution Strategy
 
-Die Lösungsstrategie beschreibt die grundlegenden architektonischen Ansätze, Muster und Technologieentscheidungen, mit denen die funktionalen Anforderungen und Qualitätsziele erreicht werden.
+Die Lösungsstrategie fasst die grundlegenden architektonischen Entwurfsentscheidungen zusammen, mit denen die funktionalen Anforderungen und Qualitätsziele realisiert werden.
 
-=== Grundlegende Architektur- und Technologieentscheidungen
+=== Architekturelle Leitprinzipien
 
-1. **Klare Schichtenarchitektur (Separation of Concerns)**
+* **Schichtenarchitektur und Entkopplung (*Separation of Concerns*):**
+  Die Anwendungslogik ist strikt in zwei unabhängige Schichten getrennt:
+  ** **Python Control Layer:** Beinhaltet Benutzerschnittstelle, Eingabevalidierung, Software-Clamping und die modusspezifische Verteilungslogik.
+  ** **Unity Simulation Layer:** Fungiert als reine Darstellungs- und Physik-Engine ohne eigene Ablaufsteuerungslogik.
+  Diese Entkopplung ermöglicht automatisierte Unit-Tests in Python ohne laufende 3D-Engine.
 
-Das Gesamtsystem ist strikt in zwei Hauptschichten unterteilt:
+* **Fassaden- und Adaptermuster für einheitliche Steuerung:**
+  Die Klassen `Robot` und `World` stellen eine einheitliche Fassade (*Facade Pattern*) bereit. Benutzerskripte verwenden dieselben Methodenaufrufe für alle drei Betriebsmodi (`virtual`, `real`, `both`). Die herstellerspezifische Hardwarebibliothek `pymycobot` sowie die Netzwerk-Sockets sind vollständig im `MyPalletizerController` gekapselt (*Adapter Pattern*).
 
+* **Verbindungsloses UDP mit absoluten Zustandswerten:**
+  Um eine flüssige 3D-Darstellung ohne Latenzspitzen zu garantieren, wird verbindungsloses UDP eingesetzt. Jedes Bewegungs-Datagramm überträgt die vollständigen absoluten Winkel aller vier Achsen (`j1` bis `j4`). Dadurch ist ein vereinzelter Paketverlust unkritisch, da nachfolgende Pakete die Roboterpose unverzüglich korrigieren (Idempotenz).
 
-* **Python Control Layer:** Übernimmt die gesamte Steuerungslogik, Benutzerschnittstelle, Eingabevalidierung und modusspezifische Verteilung der Befehle.
-* **Unity Simulation Layer:** Fungiert als reine Visualisierungs- und Physik-Engine, die Steuerbefehle empfängt und in der 3D-Szene ausführt.
+* **Kanal- und Porttrennung zur Latenzoptimierung:**
+  Um zu verhindern, dass umfangreiche Weltbefehle (z. B. das Erzeugen komplexer Szenarien) zeitkritische Roboterbewegungen blockieren, sind die Kommunikationswege auf zwei separate Ports aufgeteilt:
+  ** **Port `5005` (Roboterkanal):** Hochfrequente Gelenkbewegungen, LED-Farben und Werkzeugbefehle.
+  ** **Port `5006` (Weltkanal):** Diskrete Ereignisse zur Objekt- und Szenenverwaltung (`spawn`, `delete`, `clear`).
 
-
-+ Dadurch bleibt die Steuerungslogik vollständig unabhängig von der Game-Engine, was automatisierte Unit-Tests in Python ohne laufende 3D-Engine ermöglicht.
-
-+ Die Trennung der Zuständigkeiten (Separation of Concerns) erleichtert die Wartung, Erweiterung und Testbarkeit des Systems. Neue Werkzeuge, Umgebungsobjekte oder Übungsszenarien können ergänzt werden, ohne die bestehende Kinematik- oder Netzwerkarchitektur verändern zu müssen. 
-
-
----
-
-2. **Fassaden- und Adaptermuster für einheitliche Steuerung**
-+
-Die Klassen `Robot` und `World` bilden eine intuitive Fassade (*Facade Pattern*). Der Anwender verwendet dieselben Methoden (z. B. `send_angles()`, `set_gripper_state()`, `spawn()`), unabhängig davon, welcher Betriebsmodus gewählt ist:
-* **`virtual`:** Befehle werden ausschliesslich als JSON über UDP an die Unity-Simulation gesendet.
-* **`real`:** Befehle werden über die gekapselte Herstellerbibliothek `pymycobot` seriell an die Hardware übertragen.
-* **`both`:** Befehle werden parallel an Simulation und Hardware weitergeleitet, um Soll- und Ist-Verhalten visuell zu vergleichen.
-
-3. **Kapselung herstellerspezifischer Bibliotheken**
-+
-Die herstellerspezifische Bibliothek `pymycobot` wird vollständig innerhalb des `MyPalletizerController` gekapselt. Ändert sich das Herstellerprotokoll oder wird die Hardware ausgetauscht, muss ausschliesslich dieser Adapter angepasst werden. Die öffentliche Schnittstelle für den Benutzer bleibt stabil.
-
-=== Kommunikations- und Synchronisationsstrategie
-
-1. **Verbindungsloses UDP mit zustandsbasierten Datagrammen**
-+
-Für die Echtzeit-Visualisierung der Gelenkbewegungen hat eine minimale Latenz oberste Priorität. TCP-typische Wiederholungen und Blockaden bei Paketverlust (*Head-of-Line Blocking*) würden zu Verzögerungen und ruckelnden Bewegungen führen. 
-+
-Da jedes Bewegungs-Datagramm den vollständigen absoluten Soll-Zustand aller vier Gelenke (`j1` bis `j4`) enthält, ist ein einzelner Paketverlust unkritisch: Das nachfolgende Paket bringt den Roboterarm sofort wieder auf die korrekte Zielposition.
-
-2. **Dedizierte Porttrennung für Roboter- und Weltbefehle**
-+
-Das System nutzt zwei getrennte UDP-Kanäle:
-* **Port `5005` (Roboterkanal):** Hochfrequente, zeitkritische Bewegungs-, Werkzeug- und LED-Befehle.
-* **Port `5006` (Weltkanal):** Diskrete, unregelmässig auftretende Befehle zur Objekt- und Szenenverwaltung (`spawn`, `delete`, `clear`).
-+
-Diese Aufteilung verhindert, dass grosse Welt-Nachrichten (z. B. das Erzeugen komplexer Szenarien) den zeitkritischen Strom von Roboter-Bewegungsbefehlen blockieren oder verzögern.
-
-3. **Thread-sicheres Dispatching im Unity-Hauptthread**
-+
-Unity erlaubt den Zugriff auf Game-Objects und Physik-Komponenten ausschliesslich aus dem Engine-Hauptthread (*Unity Main Thread*). Die UDP-Empfangslogik (`UnityUdpBridge`, `WorldUdpBridge`) läuft in einem separaten Hintergrund-Thread und reiht eintreffende Befehle in thread-sichere Warteschlangen ein. 
-+
-Ein zentraler `CommandRunner` (als Unity-Coroutine) arbeitet diese Warteschlange im `Update`- bzw. `FixedUpdate`-Zyklus ab.
-
-4. **Asynchrone und synchrone Bewegungsmuster**
-+
-* **Asynchron (`send_angles` / `MoveJointsAsync`):** "Fire-and-Forget"-Prinzip. Das Python-Skript sendet das Datagramm und setzt die Ausführung sofort fort.
-* **Synchron (`sync_move_joints` / `MoveJointsSync`):** Auf Python-Hardwareseite blockiert der Thread, bis die Servos das Ziel erreicht haben. In Unity pausiert die Coroutine mit `yield return`, bis alle Gelenke innerhalb einer definierten Toleranz (`epsDeg = 0.5°`) die Zielwinkel erreicht haben, bevor der nächste Befehl aus der Warteschlange verarbeitet wird.
-
-=== Validierungs- und Sicherheitsstrategie
-
-1. **Fail-Fast-Validierung auf API-Ebene**
-+
-Fehlende Pflichtparameter (wie ein ungültiger COM-Port im Modus `real`) oder fehlerhafte Objektstrukturen (z. B. negative Skalierungswerte bei 3D-Körpern) werden bei der Initialisierung bzw. beim Methodenaufruf sofort durch spezifische Exceptions (`InvalidConfigError`) abgefangen.
-
-2. **Automatisches Software-Clamping**
-+
-Um mechanische Schäden am realen Roboterarm sowie unphysikalische Posen in der Simulation zu verhindern, begrenzt der `MyPalletizerController` alle Gelenkwinkel vor dem Versand auf die exakten physikalischen Limits der Hardware:
-* Joint 1: `[-160.0°, 160.0°]`
-* Joint 2: `[0.0°, 90.0°]`
-* Joint 3: `[-92.0°, 60.0°]`
-* Joint 4: `[-360.0°, 360.0°]`
-+
-Ebenso werden Geschwindigkeiten auf `1..100` und RGB-Werte auf `0..255` begrenzt.
-
-3. **Virtuelle Zustandsverwaltung (`_sim_angles`)**
-+
-Im Simulationsbetrieb verwaltet der Controller einen internen Zustandsspeicher (`_sim_angles`). Dadurch liefert die Abfragemethode `get_angles()` auch im reinen Simulationsbetrieb konsistente Winkeldaten zurück, ohne dass ein aufwendiger Netzwerk-Rückkanal erforderlich ist.
+* **Mehrstufiges Schutz- und Validierungskonzept:**
+  ** **Fail-Fast:** Fehlerhafte Konfigurationen (z. B. fehlender Port im Hardwarebetrieb) oder unvollständige 3D-Vektoren werden bei der Instanziierung sofort mit einer Exception abgefangen.
+  ** **Software Clamping:** Gelenkwinkel, Geschwindigkeiten und LED-Farbwerte werden vor der Übertragung automatisch auf die physikalischen Grenzen des MyPalletizer 260 M5 begrenzt.

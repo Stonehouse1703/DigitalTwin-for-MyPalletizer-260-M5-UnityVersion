@@ -1,0 +1,17 @@
+@startuml
+!include style.puml
+
+actor "Benutzer / Entwickler" as User
+
+package "Digital Twin Gesamtsystem" as DTS {
+    component "Python Control Layer\n(mypalletizer API)" as PythonLayer
+    component "Unity Simulation Layer\n(Unity 3D / C#)" as UnityLayer
+}
+
+node "MyPalletizer 260 M5\n(Physische Hardware)" as Hardware
+
+User --> PythonLayer : Nutzt Python-API (Robot & World)
+PythonLayer --> UnityLayer : UDP / JSON (Ports 5005 & 5006)\nRoboter- & Weltbefehle
+PythonLayer --> Hardware : USB / Serial (115200 Baud)\nBefehle & Telemetrie
+
+@enduml

@@ -3,7 +3,7 @@ ifndef::imagesdir[:imagesdir: ../images]
 [[section-technical-risks]]
 == Risks and Technical Debts
 
-Dieses Kapitel dokumentiert bekannte architektonische Risiken, technische Schulden sowie Massnahmen zur Risikominderung.
+Dieses Kapitel dokumentiert bekannte architektonische und technologische Risiken, technische Schulden sowie Massnahmen zu deren Beherrschung.
 
 === Architektur-Risiken
 
@@ -12,19 +12,19 @@ Dieses Kapitel dokumentiert bekannte architektonische Risiken, technische Schuld
 | Risiko | Ursache und Auswirkung | Massnahme zur Risikominderung
 
 | **Paketverlust bei UDP-Kommunikation**
-| UDP garantiert weder Zustellung noch Reihenfolge. Bei hoher Netzwerklast könnten Pakete verloren gehen.
-| Jedes Bewegungs-Datagramm enthält den vollständigen absoluten Zustand (`j1` bis `j4`). Das nächste empfangene Paket korrigiert die Roboterpose ohne bleibende Abweichung.
+| UDP garantiert weder Zustellung noch Reihenfolge.
+| Jedes Datagramm enthält den vollständigen absoluten Zustand (`j1` bis `j4`). Das nächste empfangene Paket korrigiert die Pose ohne bleibenden Versatz.
 
 | **Open-Loop-Steuerung der Simulation**
-| Die Python-API sendet Kommandos an Unity, ohne eine Quittung oder physikalische Kollisionsrückmeldung abzuwarten.
-| Für den Bildungs- und Übungskontext ist die Einwegkommunikation ausreichend. Der interne Zustandsspeicher `_sim_angles` stellt sicher, dass `get_angles()` konsistente Werte liefert.
+| Die Python-API sendet Befehle an Unity, ohne eine physikalische Quittung abzuwarten.
+| Für den Lehrkontext ist das ausreichend. Der lokale Zustandsspeicher `_sim_angles` stellt sicher, dass `get_angles()` unmittelbar konsistente Werte liefert.
 
 | **Laufzeit-Asynchronität im Modus `both`**
-| Unity-Physik und reale Servo-Motoren haben leicht unterschiedliche Trägheitsmomente und Ansprechzeiten.
-| Beide Zielsysteme erhalten dieselben Zielwinkel und Geschwindigkeitsstufen. Für synchrone Bewegungen blockiert `sync_move_joints` auf Python-Seite bis zur Fertigstellung.
+| Unity-Physik und reale Servomotoren haben leicht unterschiedliche Trägheitsmomente und Ansprechzeiten.
+| Beide Zielsysteme erhalten identische Zielwinkel und Geschwindigkeitsstufen; für synchrone Bewegungen blockiert `sync_move_joints` auf Python-Seite bis zur Fertigstellung.
 
 | **Port-Kollisionen**
-| Die Standard-UDP-Ports `5005` und `5006` könnten durch andere Anwendungen belegt sein.
+| Standard-UDP-Ports `5005` und `5006` könnten belegt sein.
 | Die Ports sind im Python-Konstruktor (`RobotConfig`, `World`) und in den Unity-Inspektoren frei konfigurierbar.
 |===
 
@@ -35,35 +35,27 @@ Dieses Kapitel dokumentiert bekannte architektonische Risiken, technische Schuld
 | Risiko | Ursache und Auswirkung | Massnahme zur Risikominderung
 
 | **CAD-Modell-Toleranzen**
-| Die vom Hersteller bereitgestellten 3D-Modelle weisen minimale geometrische Diskrepanzen zur physischen Hardware auf.
-| Softwareseitige Ausrichtungskompensation durch `GripperDownConstraint` in Unity; transparente Dokumentation, dass das Modell für Kinematiktests und nicht für Mikrometer-Präzision ausgelegt ist.
+| Die 3D-Modelle des Herstellers weisen minimale Abweichungen zur physischen Hardware auf.
+| Softwareseitige Ausrichtungskompensation durch `GripperDownConstraint` in Unity; transparente Dokumentation des Kinematikfokus.
 
 | **Fehlende Kamerasimulation**
-| Die optionale USB-Kamera des MyPalletizer wird in Unity nicht simuliert.
-| Klare funktionale Abgrenzung: Das Projekt fokussiert auf Bewegungs- und Pick-and-Place-Logik. Bildverarbeitungsalgorithmen werden separat an der realen Hardware unterrichtet.
+| Die optionale Hardware-Kamera wird in Unity nicht simuliert.
+| Klare funktionale Abgrenzung: Das Projekt fokussiert auf Manipulations- und Bewegungslogik. Bildverarbeitung wird separat an der realen Hardware unterrichtet.
 
 | **Abhängigkeit von `pymycobot`**
-| Externe Fehler oder Inkompatibilitäten in der Herstellerbibliothek könnten die Hardwareansteuerung beeinträchtigen.
-| Vollständige Kapselung von `pymycobot` im `MyPalletizerController`. Bei Bedarf kann die Implementierung gegen eine eigene serielle Treiberschicht ausgetauscht werden.
+| Fehler in der Herstellerbibliothek könnten die Hardwareansteuerung beeinträchtigen.
+| Kapselung von `pymycobot` im `MyPalletizerController`. Bei Bedarf kann die Implementierung gegen eine eigene serielle Treiberschicht ausgetauscht werden.
 
 | **Thread-Sicherheit in Unity**
-| Fehlerhafte Zugriffe aus dem Netzwerk-Thread auf Unity-Objekte führen zu unbehandelten Engine-Crashes.
-| Strikte Trennung über thread-sichere Sperren (`lock`) und Queues (`_commandQueue`), die ausschliesslich im Unity-Hauptthread (`CommandRunner`) abgearbeitet werden.
+| Fehlerhafte Zugriffe aus dem Netzwerk-Thread auf Unity-Objekte führen zu Engine-Crashes.
+| Strikte Trennung über threadsichere Sperren (`lock`) und Queues (`_commandQueue`), die ausschliesslich im Unity-Hauptthread (`CommandRunner`) abgearbeitet werden.
 |===
 
 === Technische Schulden und Weiterentwicklung
 
-1. **Automatisierung der System- und Integrationstests:**
-+
-* **Status:** Unit-Tests in Python und EditMode-Tests in Unity sind automatisiert. End-to-End-Systemtests (Zusammenspiel über UDP) werden derzeit manuell nach Testprotokoll im Wiki durchgeführt.
-* **Massnahme:** Zukünftige Integration eines Headless-Unity-Test-Runners in die GitHub Actions CI-Pipeline.
-
-2. **Vereinfachtes Interaktionsmodell für Greifer und Pumpe:**
-+
-* **Status:** Werkzeuge nutzen ein kinematisches Kopplungsmodell (`AttachTo`), anstatt komplexe Reibungs- und Kraftschlüsse physikalisch zu berechnen.
-* **Massnahme:** Für Lehrzwecke ist dieses Modell hochgradig stabil und performant. Ein physikalisch exaktes Reibungsmodell kann bei Bedarf modular im `SimpleGripperController` nachgerüstet werden.
-
-3. **Bidirektionaler Telemetrie-Rückkanal:**
-+
-* **Status:** Unity sendet derzeit keine Daten an Python zurück; der Rückgabewert von `get_angles()` basiert in der Simulation auf dem internen Zustand `_sim_angles`.
-* **Massnahme:** Optionale Erweiterung um einen Rückkanal (z. B. auf Port `5007`) für gemessene Gelenkwinkel und Kollisionsereignisse aus Unity.
+* **Automatisierung von End-to-End-Systemtests:**
+  Unit-Tests in Python und EditMode-Tests in Unity sind automatisiert. Systemtests (Zusammenspiel über UDP) werden derzeit manuell nach Wiki-Testprotokoll durchgeführt. Langfristig ist ein Headless-Unity-Testrunner in GitHub Actions geplant.
+* **Vereinfachtes Greifermodell:**
+  Werkzeuge nutzen ein kinematisches Kopplungsmodell (`AttachTo`), anstatt komplexe Reibungskräfte physikalisch zu berechnen. Für Lehrzwecke ist dies stabil und performant; ein Reibungsmodell kann bei Bedarf modular nachgerüstet werden.
+* **Bidirektionaler Telemetrie-Rückkanal:**
+  Unity sendet derzeit keine Messwerte an Python zurück; `get_angles()` basiert in der Simulation auf `_sim_angles`. Eine spätere Erweiterung um einen Rückkanal (z. B. auf Port `5007`) ist architektonisch vorbereitet.
