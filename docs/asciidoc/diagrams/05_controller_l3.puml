@@ -49,6 +49,6 @@ class protocol <<module>> {
 }
 
 MyPalletizerController "1" o-- "0..1" MyPalletizer260 : Hardwaretreiber
-MyPalletizerController ..> protocol : Nutzt Message Builder
+MyPalletizerController --> protocol : Message Builder
 
 @enduml

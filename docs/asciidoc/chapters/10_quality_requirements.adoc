@@ -20,7 +20,7 @@ image::10_quality_tree.png[align=center, width=80%]
 | **QS-1**
 | **Performanz**
 | Ein Benutzer sendet Gelenkbewegungen (`send_angles`) über die Python-API an die laufende Unity-Simulation.
-| Die visuelle Bewegung des Roboterarms beginnt innerhalb von weniger als `50 ms`.
+| Zielwert: Die visuelle Bewegung des Roboterarms soll innerhalb von `50 ms` beginnen. Ein Messprotokoll ist im Repository nicht enthalten.
 
 | **QS-2**
 | **Portabilität**
@@ -30,7 +30,7 @@ image::10_quality_tree.png[align=center, width=80%]
 | **QS-3**
 | **Robustheit**
 | Die Unity-Simulation wird während der Programmausführung unerwartet beendet oder ist noch nicht gestartet.
-| Das Python-Skript blockiert nicht und bricht nicht unkontrolliert ab.
+| Zielwert: Das Python-Skript soll bei nicht erreichbarem Unity-Prozess nicht auf eine Antwort warten. Ein Netzwerkfehler kann derzeit trotzdem als Socket-Exception auftreten.
 
 | **QS-4**
 | **Eingabeschutz**
@@ -40,22 +40,22 @@ image::10_quality_tree.png[align=center, width=80%]
 | **QS-5**
 | **Benutzbarkeit**
 | Ein neuer Anwender ohne Unity-Vorkenntnisse installiert das Paket und führt ein Beispielskript aus.
-| Die erste Roboterbewegung in der Simulation ist in unter `15 Minuten` erfolgreich ausgeführt.
+| Zielwert: Ein neuer Anwender soll die erste Roboterbewegung in unter `15 Minuten` ausführen können. Dieser Wert ist bisher nicht gemessen.
 
 | **QS-6**
 | **Wartbarkeit**
 | Ein Entwickler ergänzt einen neuen administrativen Weltbefehl in Python und C#.
-| Die Änderung betrifft ausschliesslich das `protocol`-Modul sowie den `WorldSpawnManager`, ohne bestehende Roboterklassen zu modifizieren.
+| Die Änderung soll auf Protokollmodelle, UDP-Bridge, `WorldSpawnManager` und die zugehörigen Tests begrenzt bleiben; die Roboterklassen sollen unverändert bleiben.
 
 | **QS-7**
 | **Funktionale Korrektheit**
 | Ein Pick-and-Place-Ablauf wird synchron im Modus `both` ausgeführt.
-| Gelenkrichtungen und Werkzeugaktivierungen in der Simulation stimmen visuell plausibel mit der Hardware überein.
+| Zielwert: Gelenkrichtungen und Werkzeugaktivierungen sollen visuell plausibel mit der Hardware übereinstimmen. Es gibt keinen automatisierten Vergleich.
 
 | **QS-8**
 | **Fehlertoleranz**
 | Während einer Bewegung geht ein einzelnes UDP-Datagramm im lokalen Netzwerk verloren.
-| Das Folgepaket führt den Roboterarm nahtlos auf die korrekte Zielbahn (kein Posenversatz).
+| Für Bewegungen kann ein späteres Paket den Zielzustand korrigieren. Einzelne Befehle werden nicht quittiert oder wiederholt.
 
 | **QS-9**
 | **Sicherheit**
@@ -70,6 +70,6 @@ image::10_quality_tree.png[align=center, width=80%]
 
 === Architektonische Zielkonflikte (Trade-offs)
 
-* **Latenz vs. Garantierte Zustellung:** Verbindungsloses UDP priorisiert minimale Latenz gegenüber garantierter TCP-Paketzustellung; die Zustands-Idempotenz kompensiert diesen Verlust.
+* **Latenz vs. Zustellung:** Verbindungsloses UDP priorisiert minimale Latenz. Bewegungen können durch spätere absolute Zielwerte korrigiert werden; eine garantierte Zustellung gibt es nicht.
 * **Einfachheit der API vs. Hardware-Transparenz:** Die High-Level-Fassade verbirgt feingranulare herstellerspezifische Sonderfunktionen von `pymycobot`, um eine einheitliche und intuitive Schnittstelle zu bieten.
 * **Visuelle Plausibilität vs. Hochpräzise Dynamik:** Die Simulation priorisiert eine performante Echtzeitdarstellung in Unity gegenüber einer rechenintensiven Finite-Elemente-Simulation.

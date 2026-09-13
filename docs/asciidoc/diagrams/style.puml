@@ -8,8 +8,12 @@ skinparam dpi 200
 skinparam arrowColor #2C3E50
 skinparam arrowThickness 1.2
 skinparam linetype ortho
-skinparam nodesep 50
-skinparam ranksep 50
+skinparam nodesep 65
+skinparam ranksep 55
+skinparam messageAlign center
+skinparam responseMessageBelowArrow true
+skinparam BoxPadding 10
+skinparam maxMessageSize 55
 
 skinparam rectangle {
     BackgroundColor #FFFFFF
@@ -18,7 +22,7 @@ skinparam rectangle {
 }
 
 skinparam component {
-    BackgroundColor #F8F9FA
+    BackgroundColor #F4F7F9
     BorderColor #2C3E50
     BorderThickness 1.2
 }
@@ -30,15 +34,22 @@ skinparam node {
 }
 
 skinparam actor {
-    BackgroundColor #EAECEE
+    BackgroundColor #E8F1F5
     BorderColor #2C3E50
 }
 
 skinparam class {
-    BackgroundColor #FFFFFF
+    BackgroundColor #F8FAFB
     BorderColor #2C3E50
-    HeaderBackgroundColor #EAEDED
+    HeaderBackgroundColor #DCE8EE
     BorderThickness 1.2
+}
+skinparam classAttributeIconSize 0
+
+skinparam package {
+    BackgroundColor #FBFCFD
+    BorderColor #8A999F
+    FontColor #1F2D33
 }
 
 skinparam sequence {

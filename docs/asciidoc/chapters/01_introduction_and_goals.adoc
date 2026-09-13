@@ -5,7 +5,7 @@ ifndef::imagesdir[:imagesdir: ../images]
 
 Ziel ist die Bereitstellung eines digitalen Zwillings für den 4-Achs-Palettierroboter MyPalletizer 260 M5. Die 3D-Simulationsumgebung ermöglicht das gefahrlose Entwickeln, Testen und Optimieren von Roboterprogrammen und Manipulationsszenarien in einer virtuellen Umgebung, bevor der Code auf der physischen Hardware ausgeführt wird. Dadurch werden Kollisionen und mechanische Beschädigungen an den realen Servomotoren verhindert.
 
-Das System löst den Engpass der beschränkten Hardwareverfügbarkeit im Lehrbetrieb, indem es Studierenden das ortsunabhängige Programmieren ermöglicht. Als quelloffenes Projekt steht die Lösung zudem externen Forschenden und Entwicklern zur Verfügung.
+Das System löst den Engpass der beschränkten Hardwareverfügbarkeit im Lehrbetrieb, indem es Studierenden das ortsunabhängige Programmieren ermöglicht. Als Open Source Projekt steht die Lösung zudem externen Forschenden und Entwicklern zur Verfügung.
 
 === Functional Requirements
 
@@ -35,7 +35,7 @@ Die Architektur priorisiert die folgenden Qualitätsziele:
 | Rang | Qualitätsmerkmal | Szenario | Architektonische Massnahme
 
 | **1**
-| **Interoperabilität & Austauschbarkeit**
+| **Austauschbarkeit**
 | Ein Steuerungsskript soll wahlweise die Simulation, den realen Roboter oder beide Systeme ansteuern können.
 | Kapselung der Zielsysteme hinter einer einheitlichen Fassade (`Robot`), welche die modusspezifische Verteilung intern vornimmt.
 
@@ -72,7 +72,7 @@ Die Architektur priorisiert die folgenden Qualitätsziele:
 
 | **Dozierende**
 | Prof. Dr. Jana Koehler (HSLU)
-| Zuverlässiges Werkzeug für Vorlesung und Praktika, saubere arc42-Dokumentation, reproduzierbare Übungsaufgaben.
+| Zuverlässiges Werkzeug für Vorlesung und Projekte, saubere arc42-Dokumentation, reproduzierbare Übungsaufgaben.
 
 | **Entwickler**
 | Colin Felber (HSLU)
@@ -80,5 +80,5 @@ Die Architektur priorisiert die folgenden Qualitätsziele:
 
 | **Open-Source-Community**
 | Externe Robotik-Entwickler
-| Standardisierte Installation via pip, offene MIT-Lizenz und transparente Protokolldokumentation.
+| Einfache Installation und transparente Protokolldokumentation.
 |===

@@ -7,7 +7,7 @@ Die Laufzeitsicht veranschaulicht das dynamische Zusammenspiel der Bausteine anh
 
 === Szenario 1: Initialisierung und Verbindungsaufbau
 
-Dieses Szenario zeigt den Ablauf beim Starten eines Python-Skripts mit Initialisierung der Roboter- und Weltinstanzen (exemplarisch im Modus `both`).
+Dieses Szenario zeigt den Ablauf beim Starten eines Python-Skripts mit getrennten `Robot`- und `World`-Instanzen (exemplarisch im Modus `both`).
 
 image::06_runtime_init.png[align=center, width=70%]
 
@@ -15,7 +15,7 @@ image::06_runtime_init.png[align=center, width=70%]
 . **Validierung:** `_validate()` stellt sicher, dass für die Modi `real` und `both` ein serieller Port definiert ist.
 . **Hardware-Initialisierung:** `MyPalletizerController` öffnet die serielle Verbindung via `pymycobot` (115200 Baud) und bestromt die Servomotoren mit `power_on()`.
 . **Netzwerk-Socket:** Der Controller öffnet einen UDP-Socket für die Robotersteuerung auf Port `5005`.
-. **Welt-Initialisierung:** Die Instanziierung von `World` öffnet einen separaten UDP-Socket auf Port `5006` für Szenenbefehle.
+. **Welt-Initialisierung:** Der Benutzer instanziiert `World` separat. Diese Instanz öffnet den UDP-Socket auf Port `5006` für Szenenbefehle.
 
 === Szenario 2: Asynchrone Gelenkbewegung (`send_angles`)
 
@@ -30,13 +30,13 @@ image::06_runtime_async_move.png[align=center, width=80%]
 
 === Szenario 3: Synchrone Gelenkbewegung (`sync_move_joints`)
 
-Dieses Szenario beschreibt eine blockierende Bewegung, bei welcher der Ablauf erst fortgesetzt wird, wenn alle Gelenke ihre Endposition eingenommen haben.
+Dieses Szenario beschreibt zwei getrennte Wartezeiten. Python wartet auf die Hardware; Unity verarbeitet den synchronen Befehl in seiner eigenen Befehlswarteschlange.
 
 image::06_runtime_sync_move.png[align=center, width=80%]
 
 . **API-Aufruf:** Der Benutzer ruft `sync_move_joints()` auf.
 . **Hardware-Synchronisation:** Der Controller ruft `sync_send_angles()` auf `pymycobot` auf. Diese Methode blockiert den Python-Thread, bis die physischen Servos die Zielposition erreicht haben.
-. **Simulations-Synchronisation:** Die `UnityUdpBridge` empfängt den Befehl (`type: "sync_move_joints"`). Der `CommandRunner` startet `yield return MoveJointsSync(...)`. Die Coroutine wartet in jedem Physik-Frame (`FixedUpdate`), bis alle vier `ArticulationBody`-Gelenke innerhalb der Toleranz (`epsDeg = 0.5°`) liegen. Erst danach wird der nächste Befehl aus der Warteschlange verarbeitet.
+. **Simulation:** Die `UnityUdpBridge` empfängt den Befehl und wartet in Unity mit `MoveJointsSync(...)`, bis die vier Gelenke innerhalb der Toleranz liegen. Python erhält darüber keine Rückmeldung und wartet nicht auf Unity.
 
 === Szenario 4: Dynamisches Objektspawnen (`World.spawn`)
 

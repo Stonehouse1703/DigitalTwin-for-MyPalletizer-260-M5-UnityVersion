@@ -1,12 +1,13 @@
 @startuml
 !include style.puml
 autonumber
+hide footbox
 
 actor "Benutzer" as User
 participant "Robot" as Robot
 participant "MyPalletizerController" as MPC
+participant "World" as World
 participant "pymycobot" as PMC
-database "Unity Simulation" as Unity
 
 User -> Robot : Robot(mode=BOTH, port="/dev/ttyUSB0")
 activate Robot
@@ -36,5 +37,11 @@ deactivate MPC
 
 Robot --> User : Robot-Instanz betriebsbereit
 deactivate Robot
+
+User -> World : World(ip="127.0.0.1", udp_port=5006)
+activate World
+World -> World : socket(AF_INET, SOCK_DGRAM)
+World --> User : World-Instanz betriebsbereit
+deactivate World
 
 @enduml

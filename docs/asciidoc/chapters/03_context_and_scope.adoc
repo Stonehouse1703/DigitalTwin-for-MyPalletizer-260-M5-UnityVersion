@@ -28,7 +28,7 @@ image::03_context_business.png[align=center, width=75%]
 | **Unity Simulation**
 | 3D-Echtzeit-Visualisierung von Kinematik, Werkzeugen und dynamischen Simulationskörpern.
 | *Eingabe:* UDP-Steuerkommandos. +
-*Ausgabe:* Grafische Darstellung der Bewegungen und physikalischen Greifvorgänge.
+*Ausgabe:* Grafische Darstellung der Bewegungen und Greifvorgänge. Unity sendet derzeit keine Zustandsquittung an Python.
 
 | **MyPalletizer 260 M5**
 | Physischer Roboterarm zur realen Ausführung von Bewegungsabläufen.
@@ -48,7 +48,7 @@ image::03_context_technical.png[align=center, width=80%]
 
 | **Benutzerskript -> Python API**
 | In-Process Funktionsaufruf
-| Python 3 API (Objektorientiert)
+| Python API (Objektorientiert)
 | Direkte Methodenaufrufe auf den Klassen `Robot` und `World` mit nativer Parameterübergabe und Typisierung.
 
 | **Python API -> Unity (Roboterkanal)**

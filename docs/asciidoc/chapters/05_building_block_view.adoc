@@ -53,7 +53,7 @@ image::05_python_l2.png[align=center, width=80%]
 | Zentrale Factory zur Konstruktion einheitlicher JSON-Nachrichten mit Versionsfeld (`"v": 1`) und Typkennung (`"type"`).
 
 | **`presets`**
-| Katalog vorgefertigter Szenarien (`empty`, `three_blocks`, `pick_and_place_basic`, `sorting_task`).
+| Katalog der implementierten Szenarien `empty`, `three_blocks`, `Base1` und `sorting_task`.
 
 | **`objects`**
 | Datenklassen für 3D-Körper: `WorldObject` (Basisklasse) sowie `Box`, `Sphere` und `Cylinder`.
@@ -103,7 +103,7 @@ image::05_unity_l2.png[align=center, width=85%]
 | Empfängt UDP-Datagramme auf Port `5006` und übergibt sie im `Update`-Frame an den `WorldSpawnManager`.
 
 | **`WorldSpawnManager`**
-| Instanziiert Prefabs (`boxPrefab`, `spherePrefab`, `cylinderPrefab`), konfiguriert `Rigidbody` und `GrabbableObject`, weist Farben zu und verwaltet aktive Objekte (`_spawnedObjects`).
+| Instanziiert Prefabs (`boxPrefab`, `spherePrefab`, `cylinderPrefab`), konfiguriert `Rigidbody`, weist Farben zu und verwaltet aktive Objekte (`_spawnedObjects`). Nur dynamische Objekte erhalten zusätzlich `GrabbableObject`.
 
 | **`GrabbableObject`**
 | Kennzeichnungskomponente für interaktionsfähige Objekte; verwaltet hierarchische Fixierung (`AttachTo`) und Freigabe (`Detach`).

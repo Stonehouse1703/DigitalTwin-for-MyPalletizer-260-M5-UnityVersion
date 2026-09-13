@@ -1,20 +1,19 @@
 @startuml
 !include style.puml
+left to right direction
 
 actor "Benutzer / Entwickler" as User
 
-rectangle "Digital Twin System\n(MyPalletizer Python API)" as DTS
+rectangle "Digital Twin System\n(Python API)" as DTS
+rectangle "Unity Simulation\n(3D & Physik)" as Unity
+rectangle "MyPalletizer 260 M5\n(Hardware)" as Hardware
 
-together {
-    rectangle "Unity Simulation\n(3D-Visualisierung & Physik)" as Unity
-    rectangle "MyPalletizer 260 M5\n(Physische Hardware)" as Hardware
-}
+User --> DTS : steuert
+DTS --> Unity : UDP
+DTS --> Hardware : seriell
+Unity -[hidden]down- Hardware
 
-User -down-> DTS : Steuert Roboter & Welt\n(Python-Skripte)
-DTS -down-> Unity : Visualisiert Bewegungen\n& manipuliert Objekte
-DTS -down-> Hardware : Führt Aktionen physisch aus
-
-Unity .up.> User : Visuelles 3D-Feedback
-Hardware .up.> User : Reale Rückmeldung\n& Sensorik
+Unity ..> User : Feedback
+Hardware ..> User : Ist-Werte
 
 @enduml

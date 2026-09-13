@@ -22,7 +22,7 @@ image::07_deployment.png[align=center, width=80%]
 | Standard-Entwicklungsrechner unter Windows (10/11), Linux (Ubuntu 22.04+) oder macOS (12+).
 
 | **Python Runtime**
-| Software-Umgebung (>= 3.12)
+| Software-Umgebung (>= 3.10)
 | Führt das Benutzerskript, das installierte Paket `mypalletizer-api` sowie die Abhängigkeiten `numpy` und `pymycobot` aus.
 
 | **Unity Runtime**
@@ -58,7 +58,7 @@ image::07_deployment.png[align=center, width=80%]
 
 === Bereitstellungsvarianten
 
-* **Reine Simulation (`virtual`):** Python-Skript und Unity-Anwendung laufen auf demselben Rechner; kein Hardwareanschluss erforderlich. Ideal für Fernunterricht und algorithmische Tests.
+* **Reine Simulation (`virtual`):** Python-Skript und Unity-Anwendung laufen auf demselben Rechner; kein Hardwareanschluss ist erforderlich. Unity muss laufen, sonst werden die UDP-Befehle nicht simuliert.
 * **Hybrider Parallelbetrieb (`both`):** Python-Skript steuert zeitgleich die Unity-Simulation und den über USB verbundenen Roboter an. Dient dem direkten visuellen Soll-Ist-Vergleich.
 * **Reiner Hardwarebetrieb (`real`):** Python-Skript steuert ausschliesslich den physischen Roboter an; Unity muss nicht gestartet werden.
 

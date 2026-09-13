@@ -1,5 +1,6 @@
 @startuml
 !include style.puml
+left to right direction
 
 package "Unity Simulation Layer" {
     package "Robot Subsystem (Port 5005)" {
@@ -16,24 +17,25 @@ package "Unity Simulation Layer" {
     package "World Subsystem (Port 5006)" {
         component "WorldUdpBridge\n(Port 5006 Receiver)" as WUB
         component "WorldSpawnManager" as WSM
-        component "GrabbableObject" as GO
+        component "GrabbableObject\n(nur dynamisch)" as GO
     }
 }
 
-UUB --> Adapter : move_joints / sync_move_joints
-UUB --> ToolManager : set_end_effector / set_gripper_state / pump
+UUB --> Adapter : Bewegung
+UUB --> ToolManager : Werkzeug
 UUB --> LED : led
 
-Adapter *-- "4" Actuators : steuert an
-DownConstraint ..> Actuators : Korrigiert Endeffektor-Ausrichtung
+Adapter *-- "4" Actuators
+DownConstraint ..> Actuators
 
-ToolManager --> Gripper : Greiferaktionen
-ToolManager --> Pump : Saugaktionen
+ToolManager --> Gripper : Greifen
+ToolManager --> Pump : Saugen
 
-WUB --> WSM : spawn / delete / clear
-WSM ..> GO : Erzeugt physikalische Objekte
+WUB --> WSM
+WSM ..> GO
 
-Gripper ..> GO : Greift über Trigger
-Pump ..> GO : Saugt über Trigger
+Gripper ..> GO
+Pump ..> GO
+
 
 @enduml

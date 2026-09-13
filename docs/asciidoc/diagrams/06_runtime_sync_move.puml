@@ -1,55 +1,62 @@
 @startuml
 !include style.puml
 autonumber
+hide footbox
+scale max 1800 width
 
 actor "Benutzer" as User
 participant "Robot" as Robot
 participant "MyPalletizerController" as MPC
 participant "pymycobot" as PMC
-database "Unity Simulation" as Unity
+participant "Unity Simulation" as Unity
 participant "UnityUdpBridge" as UUB
 participant "MyPalletizerArticulationAdapter" as Adapter
 
-User -> Robot : sync_move_joints(j1, j2, j3, j4, speed=40)
+User -> Robot : sync_move_joints(...)
 activate Robot
 
-Robot -> MPC : sync_move_joints(j1, j2, j3, j4, speed=40)
+Robot -> MPC : sync_move_joints(...)
 activate MPC
 
 MPC -> MPC : _clamp() & _sim_angles aktualisieren
 
 group Simulations-Pfad (UDP Port 5005)
-    MPC -> Unity : UDP sendto (type: "sync_move_joints")
+    MPC -> Unity : UDP: sync_move_joints
     activate Unity
     Unity -> UUB : _commandQueue.Enqueue(cmd)
 end
 
 group Hardware-Pfad (Serial)
-    MPC -> PMC : sync_send_angles([j1, j2, j3, j4], speed)
+    MPC -> PMC : sync_send_angles(...)
     activate PMC
-    note over MPC, PMC : Blockiert im Python-Thread,\nbis Roboter-Servos am Ziel sind
+    note right of MPC : Python wartet nur\nauf die Hardware.
     PMC --> MPC : Hardware-Position erreicht
     deactivate PMC
 end
 
-MPC --> Robot : fertig
+MPC --> Robot : Hardware fertig
 deactivate MPC
-Robot --> User : Rückkehr (Roboter steht am Ziel)
+Robot --> User : Rückkehr (Hardware steht am Ziel)
 deactivate Robot
 
-== Synchrone Verarbeitung in Unity ==
+== Unabhängige Verarbeitung in Unity ==
 Unity -> UUB : CommandRunner()
 activate UUB
 UUB -> UUB : cmd = _commandQueue.Dequeue()
-UUB -> Adapter : yield return MoveJointsSync(j1..j4, speed)
+UUB -> Adapter : MoveJointsSync(...)
 activate Adapter
 loop Bis alle Gelenke innerhalb epsDeg (0.5°)
-    Adapter -> Adapter : yield return new WaitForFixedUpdate()
+    Adapter -> Adapter : WaitForFixedUpdate()
 end
 Adapter --> UUB : Alle Achsen am Ziel
 deactivate Adapter
 UUB --> Unity : Nächster Queue-Befehl freigegeben
 deactivate UUB
 deactivate Unity
+
+note right of Unity
+Python erhält keine Quittung
+von Unity.
+end note
 
 @enduml

@@ -61,11 +61,11 @@ Die folgenden Architectural Decision Records (ADRs) dokumentieren die zentralen 
 
 * **Status:** Akzeptiert
 * **Kontext:** In Übungen müssen reproduzierbare Ausgangssituationen für Pick-and-Place-Aufgaben schnell geladen werden können.
-* **Entscheidung:** Standardszenarien (`three_blocks`, `pick_and_place_basic`, `sorting_task`) werden als Python-Presets definiert und über `World.load_preset()` bereitgestellt.
+* **Entscheidung:** Die vorhandenen Standardszenarien (`empty`, `three_blocks`, `Base1`, `sorting_task`) werden als Python-Presets definiert und über `World.load_preset()` bereitgestellt.
 * **Betrachtete Alternativen:**
   1. Manuelles Platzieren aller Objekte im Unity-Editor vor Programmstart.
   2. Laden ausschliesslich aus externen JSON-Dateien.
-* **Begründung:** Codebasierte Presets ermöglichen deterministische und automatisierbare Übungsabläufe direkt aus dem Steuerungsskript.
+* **Begründung:** Codebasierte Presets ermöglichen deterministische und automatisierbare Übungsabläufe direkt aus dem Steuerungsskript. Ein eigenes `pick_and_place_basic`-Preset ist derzeit nicht implementiert.
 * **Konsequenzen:**
   * **Positiv:** Sofort einsatzbereite, reproduzierbare Laboraufgaben.
   * **Negativ:** Presets müssen bei Erweiterung der 3D-Körper-Bibliothek nachgepflegt werden.

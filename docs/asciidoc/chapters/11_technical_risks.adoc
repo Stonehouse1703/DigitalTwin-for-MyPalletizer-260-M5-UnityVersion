@@ -13,7 +13,7 @@ Dieses Kapitel dokumentiert bekannte architektonische und technologische Risiken
 
 | **Paketverlust bei UDP-Kommunikation**
 | UDP garantiert weder Zustellung noch Reihenfolge.
-| Jedes Datagramm enthält den vollständigen absoluten Zustand (`j1` bis `j4`). Das nächste empfangene Paket korrigiert die Pose ohne bleibenden Versatz.
+| Bewegungsdatagramme enthalten den vollständigen absoluten Zustand (`j1` bis `j4`). Ein späteres Bewegungsdatagramm kann die Pose korrigieren; einzelne Befehle bleiben ohne Quittierung.
 
 | **Open-Loop-Steuerung der Simulation**
 | Die Python-API sendet Befehle an Unity, ohne eine physikalische Quittung abzuwarten.
@@ -21,11 +21,11 @@ Dieses Kapitel dokumentiert bekannte architektonische und technologische Risiken
 
 | **Laufzeit-Asynchronität im Modus `both`**
 | Unity-Physik und reale Servomotoren haben leicht unterschiedliche Trägheitsmomente und Ansprechzeiten.
-| Beide Zielsysteme erhalten identische Zielwinkel und Geschwindigkeitsstufen; für synchrone Bewegungen blockiert `sync_move_joints` auf Python-Seite bis zur Fertigstellung.
+| Beide Zielsysteme erhalten identische Zielwinkel und Geschwindigkeitsstufen. Python wartet bei `sync_move_joints` nur auf die Hardware; Unity verarbeitet den Befehl unabhängig in seiner Queue.
 
 | **Port-Kollisionen**
 | Standard-UDP-Ports `5005` und `5006` könnten belegt sein.
-| Die Ports sind im Python-Konstruktor (`RobotConfig`, `World`) und in den Unity-Inspektoren frei konfigurierbar.
+| Die Standardports sind in Python und Unity auf `5005` und `5006` ausgelegt. Eine durchgängige Laufzeitkonfiguration ist derzeit nicht umgesetzt.
 |===
 
 === Technologische und Implementierungsrisiken
@@ -33,14 +33,6 @@ Dieses Kapitel dokumentiert bekannte architektonische und technologische Risiken
 [cols="1,2,2", options="header"]
 |===
 | Risiko | Ursache und Auswirkung | Massnahme zur Risikominderung
-
-| **CAD-Modell-Toleranzen**
-| Die 3D-Modelle des Herstellers weisen minimale Abweichungen zur physischen Hardware auf.
-| Softwareseitige Ausrichtungskompensation durch `GripperDownConstraint` in Unity; transparente Dokumentation des Kinematikfokus.
-
-| **Fehlende Kamerasimulation**
-| Die optionale Hardware-Kamera wird in Unity nicht simuliert.
-| Klare funktionale Abgrenzung: Das Projekt fokussiert auf Manipulations- und Bewegungslogik. Bildverarbeitung wird separat an der realen Hardware unterrichtet.
 
 | **Abhängigkeit von `pymycobot`**
 | Fehler in der Herstellerbibliothek könnten die Hardwareansteuerung beeinträchtigen.

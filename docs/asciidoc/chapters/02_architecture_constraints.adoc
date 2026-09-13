@@ -3,7 +3,7 @@ ifndef::imagesdir[:imagesdir: ../images]
 [[section-architecture-constraints]]
 == Architecture Constraints
 
-Die folgenden technischen, organisatorischen und konventionellen Vorgaben bilden den unveränderlichen Rahmen für die Architektur des digitalen Zwillings.
+Die folgenden Vorgaben bilden den Rahmen für die Architektur des digitalen Zwillings. Wo die Implementierung eine Grenze setzt, ist diese ausdrücklich genannt.
 
 === Technische Randbedingungen
 
@@ -15,7 +15,7 @@ Die folgenden technischen, organisatorischen und konventionellen Vorgaben bilden
 | Das System ist an den physischen 4-Achs-Roboter *MyPalletizer 260 M5* von Elephant Robotics gebunden. Dessen mechanische Achsgrenzen (`J1: -160..160°`, `J2: 0..90°`, `J3: -92..60°`, `J4: -360..360°`), Drehzahlen und Endeffektoren geben die Simulationsparameter vor.
 
 | **Programmiersprache Python**
-| Die Steuerungs- und Benutzerschnittstelle muss in Python (Version >= 3.12) entwickelt werden.
+| Die Steuerungs- und Benutzerschnittstelle wird mit Python `>= 3.10` entwickelt. Diese Version ist in `python/pyproject.toml` festgelegt.
 
 | **Simulations-Engine Unity**
 | Als 3D-Engine ist Unity (C#) festgelegt. 
@@ -35,3 +35,17 @@ Die folgenden technischen, organisatorischen und konventionellen Vorgaben bilden
 | Das Projekt wurde als Einzelprojektarbeit im Modul AI-Robotics an der Hochschule Luzern innerhalb eines Semesters umgesetzt.
 
 |===
+
+=== Konventionen und Standards
+
+* Die öffentliche API liegt in Python und wird über `Robot` und `World` verwendet.
+* Nachrichten zwischen Python und Unity sind UTF-8-kodierte JSON-Datagramme über UDP.
+* Die vier Gelenke werden durchgehend als `j1` bis `j4` bezeichnet.
+* Architekturentscheidungen werden in Kapitel 9 als ADRs festgehalten.
+
+=== Bewusste Grenzen und Annahmen
+
+* Unity ist für die Simulation zuständig. Python erhält von Unity derzeit keine Quittung und keine simulierten Ist-Werte.
+* Der Modus `virtual` funktioniert ohne Hardware, aber nur dann als Simulation, wenn Unity läuft und die UDP-Nachrichten empfängt.
+* Die Simulation ersetzt keine exakte Kollisions- oder Kamerasimulation. Das Greifen wird über eine vereinfachte Kopplung modelliert.
+* Standardmässig werden die Ports `5005` für Roboterbefehle und `5006` für Weltbefehle verwendet. Die Implementierung bietet dafür derzeit keine vollständige Laufzeitkonfiguration in Unity.

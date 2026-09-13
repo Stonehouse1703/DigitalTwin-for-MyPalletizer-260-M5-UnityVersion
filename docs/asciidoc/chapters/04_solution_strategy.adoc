@@ -8,22 +8,22 @@ Die Lösungsstrategie fasst die grundlegenden architektonischen Entwurfsentschei
 === Architekturelle Leitprinzipien
 
 * **Schichtenarchitektur und Entkopplung (*Separation of Concerns*):**
-  Die Anwendungslogik ist strikt in zwei unabhängige Schichten getrennt:
-  ** **Python Control Layer:** Beinhaltet Benutzerschnittstelle, Eingabevalidierung, Software-Clamping und die modusspezifische Verteilungslogik.
-  ** **Unity Simulation Layer:** Fungiert als reine Darstellungs- und Physik-Engine ohne eigene Ablaufsteuerungslogik.
-  Diese Entkopplung ermöglicht automatisierte Unit-Tests in Python ohne laufende 3D-Engine.
+  Die Aufgaben sind auf zwei Schichten verteilt:
+  **Python Control Layer:** Benutzerschnittstelle, Eingabevalidierung, Software-Clamping und Weiterleitung an Hardware und Unity.
+  **Unity Simulation Layer:** UDP-Empfang, Befehlswarteschlange, Kinematik, Physik und Werkzeuglogik.
+  Diese Trennung ermöglicht Python-Unit-Tests ohne laufende 3D-Engine.
 
-* **Fassaden- und Adaptermuster für einheitliche Steuerung:**
-  Die Klassen `Robot` und `World` stellen eine einheitliche Fassade (*Facade Pattern*) bereit. Benutzerskripte verwenden dieselben Methodenaufrufe für alle drei Betriebsmodi (`virtual`, `real`, `both`). Die herstellerspezifische Hardwarebibliothek `pymycobot` sowie die Netzwerk-Sockets sind vollständig im `MyPalletizerController` gekapselt (*Adapter Pattern*).
+* **Fassade und Adapter:**
+  `Robot` und `World` bilden die öffentliche Fassade. Die Hardwarebibliothek `pymycobot` und die UDP-Sockets bleiben im Controller verborgen. Die Befehle sind zwischen den Modi weitgehend gleich; `send_angle` ist im Modus `virtual` derzeit nicht verfügbar.
 
-* **Verbindungsloses UDP mit absoluten Zustandswerten:**
-  Um eine flüssige 3D-Darstellung ohne Latenzspitzen zu garantieren, wird verbindungsloses UDP eingesetzt. Jedes Bewegungs-Datagramm überträgt die vollständigen absoluten Winkel aller vier Achsen (`j1` bis `j4`). Dadurch ist ein vereinzelter Paketverlust unkritisch, da nachfolgende Pakete die Roboterpose unverzüglich korrigieren (Idempotenz).
+* **UDP mit absoluten Zielwerten:**
+  UDP reduziert den Aufwand für häufige Bewegungsbefehle. Ein Bewegungs-Datagramm enthält alle vier Zielwinkel (`j1` bis `j4`). Ein Paketverlust wird dadurch bei einer folgenden Bewegung oft korrigiert; für einzelne Befehle gibt es derzeit keine Quittierung oder Wiederholung.
 
 * **Kanal- und Porttrennung zur Latenzoptimierung:**
   Um zu verhindern, dass umfangreiche Weltbefehle (z. B. das Erzeugen komplexer Szenarien) zeitkritische Roboterbewegungen blockieren, sind die Kommunikationswege auf zwei separate Ports aufgeteilt:
-  ** **Port `5005` (Roboterkanal):** Hochfrequente Gelenkbewegungen, LED-Farben und Werkzeugbefehle.
-  ** **Port `5006` (Weltkanal):** Diskrete Ereignisse zur Objekt- und Szenenverwaltung (`spawn`, `delete`, `clear`).
+  **Port `5005` (Roboterkanal):** Gelenkbewegungen, LED-Farben und Werkzeugbefehle.
+  **Port `5006` (Weltkanal):** Objekt- und Szenenbefehle (`spawn`, `delete`, `clear`).
 
 * **Mehrstufiges Schutz- und Validierungskonzept:**
-  ** **Fail-Fast:** Fehlerhafte Konfigurationen (z. B. fehlender Port im Hardwarebetrieb) oder unvollständige 3D-Vektoren werden bei der Instanziierung sofort mit einer Exception abgefangen.
-  ** **Software Clamping:** Gelenkwinkel, Geschwindigkeiten und LED-Farbwerte werden vor der Übertragung automatisch auf die physikalischen Grenzen des MyPalletizer 260 M5 begrenzt.
+  **Fail-Fast:** `Robot` prüft die Konfiguration und `World` prüft Weltobjekte vor dem Versand.
+  **Software-Clamping:** Gelenkwinkel, Geschwindigkeiten und LED-Farbwerte werden vor der Übertragung begrenzt.

@@ -1,28 +1,21 @@
 @startuml
 !include style.puml
+left to right direction
 
 actor "Benutzer-Skript\n(Python)" as UserScript
 
-rectangle "mypalletizer API (Python >= 3.12)" as API {
-    component "World API" as WorldAPI
-    component "Robot API" as RobotAPI
-}
+rectangle "mypalletizer API\n(Python >= 3.10)" as API
+rectangle "Unity Simulation\n(C# / PhysX)" as Unity
+rectangle "MyPalletizer 260 M5\n(ESP32)" as Hardware
 
-rectangle "Unity Simulation (C# / PhysX)" as UnityNode {
-    component "WorldUdpBridge\n(:5006)" as WorldBridge
-    component "UnityUdpBridge\n(:5005)" as RobotBridge
-}
+UserScript --> API
+API --> Unity : UDP
+API --> Hardware : USB
+Hardware ..> API
 
-rectangle "MyPalletizer 260 M5 (ESP32)" as RobotHardware {
-    component "Firmware Serial Driver\n(115200 Baud)" as SerialDriver
-}
-
-UserScript -down-> API : In-Process Aufrufe\n(Robot & World)
-
-WorldAPI -down-> WorldBridge : UDP / JSON (:5006)\nWeltkanal
-RobotAPI -down-> RobotBridge : UDP / JSON (:5005)\nRoboterkanal
-
-RobotAPI -right-> SerialDriver : USB / Serial (115200 Baud)\nBefehle via pymycobot
-SerialDriver .left.> RobotAPI : Telemetrie (get_angles)
+note right of Unity
+Unity sendet keine
+Rückmeldung an Python.
+end note
 
 @enduml

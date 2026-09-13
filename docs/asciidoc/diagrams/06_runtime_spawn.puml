@@ -1,11 +1,13 @@
 @startuml
 !include style.puml
 autonumber
+hide footbox
+scale max 1800 width
 
 actor "Benutzer" as User
 participant "World" as World
 participant "protocol" as Proto
-database "Unity Simulation" as Unity
+participant "Unity Simulation" as Unity
 participant "WorldUdpBridge\n(Port 5006)" as WUB
 participant "WorldSpawnManager" as WSM
 
@@ -38,7 +40,7 @@ activate Unity
 Unity --> WSM : GameObject instanziiert
 deactivate Unity
 
-WSM -> WSM : Rigidbody & GrabbableObject anhängen
+WSM -> WSM : Rigidbody konfigurieren\nGrabbableObject nur dynamisch
 WSM -> WSM : Skalierung & Materialfarbe setzen
 WSM -> WSM : In _spawnedObjects["cube1"] registrieren
 

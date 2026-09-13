@@ -1,12 +1,14 @@
 @startuml
 !include style.puml
 autonumber
+hide footbox
+scale max 1800 width
 
 actor "Benutzer" as User
 participant "Robot" as Robot
 participant "MyPalletizerController" as MPC
 participant "pymycobot" as PMC
-database "Unity Simulation" as Unity
+participant "Unity Simulation" as Unity
 participant "UnityUdpBridge" as UUB
 participant "RobotToolManager" as RTM
 participant "SuctionPumpController" as SPC

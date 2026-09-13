@@ -1,5 +1,8 @@
 @startuml
 !include style.puml
+left to right direction
+skinparam nodesep 110
+skinparam linetype polyline
 
 class MyPalletizerArticulationAdapter {
     + j1: ArticulationJointActuator
