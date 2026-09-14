@@ -41,7 +41,7 @@ image::05_python_l2.png[align=center, width=80%]
 | Baustein | Verantwortung und Aufgaben
 
 | **`Robot`**
-| High-Level-Fassade für die Robotersteuerung (`send_angles`, `sync_move_joints`, `set_color`, `set_end_effector`, `set_gripper_state`, `pump_on`, `pump_off`). Unterstützt das Python Context-Manager-Protokoll (`__enter__`, `__exit__`).
+| High-Level-Fassade für die Robotersteuerung (`send_angles`, `sync_move_joints`, `set_color`, `set_end_effector`, `set_gripper_state`, `pump_on`, `pump_off`).
 
 | **`MyPalletizerController`**
 | Zentraler Dispatcher und Treiber. Führt Software-Clamping für Winkel, Geschwindigkeit und RGB durch; verwaltet den lokalen Zustandsspeicher `_sim_angles`; hält den UDP-Socket für Port `5005`; kapselt die `MyPalletizer260`-Hardwareinstanz.
@@ -79,7 +79,7 @@ image::05_unity_l2.png[align=center, width=85%]
 | Empfängt UDP-Datagramme auf Port `5005` in einem Hintergrund-Thread und reiht sie threadsicher in eine Queue ein. Der `CommandRunner` leitet die Befehle im Hauptthread weiter.
 
 | **`MyPalletizerArticulationAdapter`**
-| Koordiniert die vier Gelenkaktuatoren `j1` bis `j4`. Bietet `MoveJointsAsync` (asynchron) und `MoveJointsSync` (synchron via Coroutine).
+| Koordiniert die vier Gelenkaktuatoren `j1` bis `j4`. Bietet `MoveJointsAsync` (asynchron) und `MoveJointsSync`.
 
 | **`ArticulationJointActuator`**
 | Steuert den `ArticulationBody` eines einzelnen Gelenks über dessen `xDrive` und führt die geschwindigkeitsabhängige Winkelinterpolation im `FixedUpdate` aus.

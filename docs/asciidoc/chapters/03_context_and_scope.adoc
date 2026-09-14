@@ -48,7 +48,7 @@ image::03_context_technical.png[align=center, width=80%]
 
 | **Benutzerskript -> Python API**
 | In-Process Funktionsaufruf
-| Python API (Objektorientiert)
+| Python API
 | Direkte Methodenaufrufe auf den Klassen `Robot` und `World` mit nativer Parameterübergabe und Typisierung.
 
 | **Python API -> Unity (Roboterkanal)**
@@ -63,6 +63,6 @@ image::03_context_technical.png[align=center, width=80%]
 
 | **Python API <-> MyPalletizer Hardware**
 | USB-UART (Serielle Schnittstelle)
-| 8N1, `115200` Baud (via `pymycobot`)
+| `115200` Baud (via `pymycobot`)
 | Bidirektionale Kommunikation: Senden von Zielwinkeln und Relaiszuständen; Auslesen von Sensor- und Gelenk-Telemetriedaten.
 |===

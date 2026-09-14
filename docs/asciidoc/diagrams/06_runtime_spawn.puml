@@ -22,7 +22,6 @@ deactivate Proto
 
 World -> Unity : UDP sendto (Port 5006)
 activate Unity
-WUB -> WUB : _messageQueue.Enqueue(msg)
 
 World --> User : Befehl versendet
 deactivate World

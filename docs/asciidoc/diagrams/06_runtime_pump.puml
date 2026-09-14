@@ -23,6 +23,7 @@ activate MPC
 group Simulations-Pfad (UDP Port 5005)
     MPC -> Unity : UDP sendto (type: "pump", enabled: true)
     activate Unity
+    activate UUB
     Unity -> UUB : _commandQueue.Enqueue(cmd)
 end
 
@@ -38,7 +39,6 @@ deactivate Robot
 
 == Ausführung in Unity ==
 Unity -> UUB : CommandRunner()
-activate UUB
 UUB -> UUB : cmd = _commandQueue.Dequeue()
 UUB -> RTM : SetPump(true)
 activate RTM

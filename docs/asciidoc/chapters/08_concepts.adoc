@@ -24,14 +24,6 @@ Die Netzwerkkommunikation basiert auf verbindungslosen UDP-Datagrammen mit UTF-8
   ** **Port `5006` (Weltkanal):** Diskrete Ereignisse zur Objekt- und Szenenverwaltung (`spawn`, `delete`, `clear`).
 * **Wurzelschema:** Jedes JSON-Paket enthält eine Versionsnummer (`"v": 1`) und eine Typkennung (`"type"`).
 * **Absolute Zielwerte:** Bewegungsnachrichten übertragen stets die absoluten Zielwinkel aller vier Achsen. Bei einer folgenden Bewegung kann Unity damit wieder auf den aktuellen Zielzustand gebracht werden. Für einzelne Welt-, LED- und Werkzeugbefehle gibt es keine Quittierung oder Wiederholung.
-
-=== Zustands- und Telemetriekonzept
-
-Das System unterscheidet zwischen simuliertem Soll-Zustand und physikalischem Hardware-Ist-Zustand:
-
-* **Modus `virtual`:** Der `MyPalletizerController` speichert gesetzte Winkel im lokalen Array `_sim_angles`. Die Methode `get_angles()` liefert diese Werte unmittelbar zurück. Dadurch arbeitet die API auch ohne Netzwerk-Rückkanal deterministisch.
-* **Modus `real`:** `get_angles()` fragt die tatsächlichen Ist-Winkel über die serielle Schnittstelle von den Roboter-Servos ab.
-* **Modus `both`:** `get_angles()` gibt einen formatierten String mit beiden Datensätzen (`Real` und `Sim`) zurück, was einen direkten Soll-Ist-Vergleich im Terminal erlaubt.
   
 === Welt- und Szenarienkonzept
 

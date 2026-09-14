@@ -9,20 +9,20 @@ Die Lösungsstrategie fasst die grundlegenden architektonischen Entwurfsentschei
 
 * **Schichtenarchitektur und Entkopplung (*Separation of Concerns*):**
   Die Aufgaben sind auf zwei Schichten verteilt:
-  **Python Control Layer:** Benutzerschnittstelle, Eingabevalidierung, Software-Clamping und Weiterleitung an Hardware und Unity.
-  **Unity Simulation Layer:** UDP-Empfang, Befehlswarteschlange, Kinematik, Physik und Werkzeuglogik.
+  - **Python Control Layer:** Benutzerschnittstelle, Eingabevalidierung, Software-Clamping und Weiterleitung an Hardware und Unity.
+  - **Unity Simulation Layer:** UDP-Empfang, Befehlswarteschlange, Kinematik, Physik und Werkzeuglogik.
   Diese Trennung ermöglicht Python-Unit-Tests ohne laufende 3D-Engine.
 
 * **Fassade und Adapter:**
-  `Robot` und `World` bilden die öffentliche Fassade. Die Hardwarebibliothek `pymycobot` und die UDP-Sockets bleiben im Controller verborgen. Die Befehle sind zwischen den Modi weitgehend gleich; `send_angle` ist im Modus `virtual` derzeit nicht verfügbar.
+  `Robot` und `World` bilden die öffentliche Fassade. Die Hardwarebibliothek `pymycobot` und die UDP-Sockets bleiben im Controller verborgen.
 
 * **UDP mit absoluten Zielwerten:**
   UDP reduziert den Aufwand für häufige Bewegungsbefehle. Ein Bewegungs-Datagramm enthält alle vier Zielwinkel (`j1` bis `j4`). Ein Paketverlust wird dadurch bei einer folgenden Bewegung oft korrigiert; für einzelne Befehle gibt es derzeit keine Quittierung oder Wiederholung.
 
 * **Kanal- und Porttrennung zur Latenzoptimierung:**
   Um zu verhindern, dass umfangreiche Weltbefehle (z. B. das Erzeugen komplexer Szenarien) zeitkritische Roboterbewegungen blockieren, sind die Kommunikationswege auf zwei separate Ports aufgeteilt:
-  **Port `5005` (Roboterkanal):** Gelenkbewegungen, LED-Farben und Werkzeugbefehle.
-  **Port `5006` (Weltkanal):** Objekt- und Szenenbefehle (`spawn`, `delete`, `clear`).
+  - **Port `5005` (Roboterkanal):** Gelenkbewegungen, LED-Farben und Werkzeugbefehle.
+  - **Port `5006` (Weltkanal):** Objekt- und Szenenbefehle (`spawn`, `delete`, `clear`).
 
 * **Mehrstufiges Schutz- und Validierungskonzept:**
   **Fail-Fast:** `Robot` prüft die Konfiguration und `World` prüft Weltobjekte vor dem Versand.
