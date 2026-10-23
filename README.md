@@ -1,6 +1,7 @@
 # 🦾 MyPalletizer 260 M5 – Simulation Environment
 ![Python CI](https://img.shields.io/github/actions/workflow/status/Stonehouse1703/DigitalTwin-for-MyPalletizer-260-M5-UnityVersion/python-package.yml?branch=main&label=Python%20CI)
 ![Unity Build](https://img.shields.io/github/actions/workflow/status/Stonehouse1703/DigitalTwin-for-MyPalletizer-260-M5-UnityVersion/unity-build.yml?branch=main&label=Unity%20Build)
+[![Documentation](https://img.shields.io/badge/docs-arc42%20(GitHub%20Pages)-blue)](https://Stonehouse1703.github.io/DigitalTwin-for-MyPalletizer-260-M5-UnityVersion/)
 
 
 ![MyPalletizer 260 M5](https://docs.elephantrobotics.com/docs/mypalletizer-m5-en/resourse/2-serialproduct/myP.png)
@@ -67,12 +68,8 @@ robot.set_gripper_state(0, 50)  # open
 
 ## Documentation
 
-Detailed setup, usage, and architecture are documented in the Wiki:
+* 🌐 **Architecture Documentation (Web / GitHub Pages):**  
+  👉 [arc42 Online-Dokumentation](https://Stonehouse1703.github.io/DigitalTwin-for-MyPalletizer-260-M5-UnityVersion/)
 
-👉 [Wiki](https://github.com/Stonehouse1703/DigitalTwin-for-MyPalletizer-UnityVersion/wiki)
-
-
-ARC42:
-
-👉 [LINK](https://github.com/Stonehouse1703/DigitalTwin-for-MyPalletizer-260-M5-UnityVersion/blob/main/docs/asciidoc/index.pdf )
-
+* 📄 **Architecture Documentation (PDF):**  
+  👉 [arc42 PDF-Download](docs/asciidoc/index.pdf)

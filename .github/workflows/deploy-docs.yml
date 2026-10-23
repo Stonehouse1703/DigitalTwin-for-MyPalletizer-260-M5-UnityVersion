@@ -1,0 +1,54 @@
+name: Deploy Documentation to GitHub Pages
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'docs/asciidoc/**'
+      - '.github/workflows/deploy-docs.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: 'pages'
+  cancel-in-progress: true
+
+jobs:
+  build-and-deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Install Asciidoctor & Tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y asciidoctor ruby
+          sudo gem install asciidoctor-pdf
+
+      - name: Build HTML and PDF Documentation
+        run: |
+          mkdir -p public
+          # 1. HTML-Webseite generieren
+          asciidoctor -D public -o index.html docs/asciidoc/index.adoc
+          # 2. Bilder für die Website kopieren
+          cp -r docs/asciidoc/images public/
+          # 3. PDF für direkten Download mitbauen
+          asciidoctor-pdf -D public -o documentation.pdf docs/asciidoc/index.adoc
+
+      - name: Upload Pages Artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: public
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
