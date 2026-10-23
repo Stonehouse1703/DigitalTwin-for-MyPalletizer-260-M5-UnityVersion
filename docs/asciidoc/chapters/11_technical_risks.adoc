@@ -40,21 +40,9 @@ Die folgende Übersicht fasst die identifizierten Einschränkungen im Quellcode 
 | Python erhält keine Quittung und keine simulierten Ist-Werte von Unity. `get_angles()` liest den lokalen Speicher `_sim_angles`.
 | Für Ausbildungszwecke ausreichend; bei Fehlern bietet das Unity-Konsolenlog Diagnosehinweise. Langfristig ist ein Telemetrie-Rückkanal (z. B. auf Port `5007`) vorbereitet.
 
-| **`send_angle` bewegt die Simulation nicht**
-| Einzelgelenkbefehle lösen im Modus `virtual` einen `NotImplementedError` aus und bewegen im Modus `both` nur den realen Roboter.
-| In Skripten `send_angles` oder `sync_move_joints` mit allen vier Gelenken nutzen. Zukünftige Protokollerweiterung für Einzelachsen möglich.
-
-| **Möglicher Deadlock bei `sync_move_joints` in Unity**
-| `MoveJointsSync` wartet, bis alle Achsen im Toleranzbereich (0.5°) liegen. Kann ein Gelenk das Ziel nicht erreichen, blockiert die Roboter-Befehlswarteschlange dauerhaft.
-| Einen konfigurierbaren Timeout in `MoveJointsSync` ergänzen, der die Ausführung bei Blockaden abbricht.
-
 | **Werkzeugauswahl als Vorbedingung**
 | Werkzeugbefehle (`pump_on`, `set_gripper_state`) werden von Unity ignoriert, wenn das jeweilige Werkzeug nicht zuvor per `set_end_effector` aktiviert wurde.
 | In Steuerungsskripten vor Werkzeugaktionen stets `set_end_effector` aufrufen. Eine Validierungsmeldung in der Python-API ist empfohlen.
-
-| **Keine Validierung der Protokollversion `v`**
-| Das übertragene Feld `"v": 1` wird von den UDP-Bridges empfangen, derzeit jedoch nicht auf Kompatibilität ausgewertet.
-| Versionsprüfung in den Bridges nachrüsten, um inkompatible Protokollversionen mit einer Warnung abzufangen.
 
 | **Getrennte manuelle Port-Konfiguration**
 | Ports `5005` und `5006` sind in Python per Parameter anpassbar, in Unity jedoch nur im Editor-Inspector fest verdrahtet.
@@ -67,8 +55,4 @@ Die folgende Übersicht fasst die identifizierten Einschränkungen im Quellcode 
 | **Fehlende automatisierte End-to-End-Tests**
 | Unit-Tests (Python) und EditMode-Tests (Unity) laufen automatisiert; die Netzwerk-Gesamtkette wird bisher manuell nach Protokoll getestet.
 | Einrichtung eines Headless-Unity-Testrunners in der GitHub-Actions-CI-Pipeline.
-
-| **Hohes Debug-Log-Aufkommen in Unity**
-| `UnityUdpBridge` schreibt für jedes empfangene Datagramm Log-Meldungen. Bei kontinuierlichen Bewegungen kann dies die Performance mindern.
-| Logging über Kompilierungsschalter oder Konfigurationsflags auf den Editor-Modus bzw. Fehlerfälle beschränken.
 |===

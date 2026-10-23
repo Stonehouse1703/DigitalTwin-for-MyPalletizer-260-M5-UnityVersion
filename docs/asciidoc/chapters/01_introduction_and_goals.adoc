@@ -30,34 +30,29 @@ Das System löst den Engpass der beschränkten Hardwareverfügbarkeit im Lehrbet
 
 Die Architektur priorisiert die folgenden Qualitätsziele:
 
-[cols="1,2,2,3", options="header"]
+[cols="1,2,2", options="header"]
 |===
-| Rang | Qualitätsmerkmal | Szenario | Architektonische Massnahme
+| Rang | Qualitätsmerkmal | Szenario
 
 | **1**
 | **Austauschbarkeit**
 | Ein Steuerungsskript soll wahlweise die Simulation, den realen Roboter oder beide Systeme ansteuern können.
-| Kapselung der Zielsysteme hinter einer einheitlichen Fassade (`Robot`), welche die modusspezifische Verteilung intern vornimmt.
 
 | **2**
 | **Zeitverhalten & Latenz**
 | Kontinuierliche Gelenkbewegungen sollen flüssig und ohne sichtbare Verzögerung in der 3D-Szene visualisiert werden.
-| Verwendung von verbindungslosen UDP-Datagrammen mit absoluten Zustandswerten sowie Entkopplung des Netzwerkempfangs vom Rendering über eine interne Warteschlange.
 
 | **3**
 | **Zuverlässigkeit & Fehlertoleranz**
 | Ungültige Parameter oder temporärer Paketverlust dürfen weder das Programm abbrechen noch zu unkontrollierten Bewegungen führen.
-| Parameterprüfung beim API-Aufruf (Fail-Fast), Software-Clamping für Grenzwerte und idempotente Zustandspakete.
 
 | **4**
 | **Wartbarkeit & Modularität**
 | Neue Werkzeuge oder Simulationsszenarien sollen ergänzt werden können, ohne die Kernkinematik zu verändern.
-| Strikte Funktionstrennung zwischen Robotersteuerung (`Robot`) und Umgebungsverwaltung (`World`) über getrennte Netzwerkkanäle.
 
 | **5**
 | **Portabilität**
 | Das Python-Paket und die Unity-Simulation müssen unter Windows, Linux und macOS lauffähig sein.
-| Verzicht auf plattformspezifische Bibliotheken und Bereitstellung plattformunabhängiger Builds.
 |===
 
 === Stakeholders
@@ -80,5 +75,5 @@ Die Architektur priorisiert die folgenden Qualitätsziele:
 
 | **Open-Source-Community**
 | Externe Robotik-Entwickler
-| Einfache Installation und transparente Protokolldokumentation.
+| Einfache Installation und Bedienbarkeit.
 |===

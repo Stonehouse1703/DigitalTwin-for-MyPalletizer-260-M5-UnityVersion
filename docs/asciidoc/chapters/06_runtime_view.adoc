@@ -3,58 +3,37 @@ ifndef::imagesdir[:imagesdir: ../images]
 [[section-runtime-view]]
 == Runtime View
 
-Die Laufzeitsicht veranschaulicht das dynamische Zusammenspiel der Bausteine anhand der fünf wichtigsten Ablauf- und Interaktionsszenarien.
+Die Laufzeitsicht veranschaulicht das dynamische Zusammenspiel der Bausteine anhand der architektonisch relevanten Kernabläufe: der asynchronen und synchronen Gelenkansteuerung sowie der Werkzeug- und Objektmanipulation.
 
-=== Szenario 1: Initialisierung und Verbindungsaufbau
+=== Szenario 1: Asynchrone Gelenkbewegung (`send_angles`)
 
-Dieses Szenario zeigt den Ablauf beim Starten eines Python-Skripts mit getrennten `Robot`- und `World`-Instanzen (exemplarisch im Modus `both`).
-
-image::06_runtime_init.png[align=center, width=70%]
-
-. **Instanziierung `Robot`:** Der Benutzer instanziiert `Robot(mode=RobotMode.BOTH, port="/dev/ttyUSB0")`.
-. **Validierung:** `_validate()` stellt sicher, dass für die Modi `real` und `both` ein serieller Port definiert ist.
-. **Hardware-Initialisierung:** `MyPalletizerController` öffnet die serielle Verbindung via `pymycobot` (115200 Baud) und schaltet die Servomotoren mit `power_on()` ein. Dabei wartet der Konstruktor insgesamt rund 2.5 Sekunden, bis der Roboter bereit ist.
-. **Netzwerk-Socket:** Der Controller erzeugt einen UDP-Socket, der später an Port `5005` sendet. UDP baut keine Verbindung auf. Python prüft deshalb nicht, ob Unity überhaupt läuft.
-. **Welt-Initialisierung:** Der Benutzer instanziiert `World` separat. Diese Instanz öffnet den UDP-Socket auf Port `5006` für Szenenbefehle.
-
-=== Szenario 2: Asynchrone Gelenkbewegung (`send_angles`)
-
-In diesem Szenario sendet der Benutzer Gelenkwinkel im "Fire-and-Forget"-Modus. Der Aufruf kehrt sofort zum Aufrufer zurück.
+In diesem Szenario sendet der Benutzer Gelenkwinkel im "Fire-and-Forget"-Modus. Der Aufruf kehrt sofort zum Aufrufer zurück, während die Bewegung parallel in Unity und auf der Hardware ausgeführt wird.
 
 image::06_runtime_async_move.png[align=center, width=80%]
 
-. **API-Aufruf & Clamping:** Der Benutzer ruft `send_angles()` auf. Der Controller begrenzt Winkel und Geschwindigkeit und aktualisiert `_sim_angles`.
-. **JSON-Erstellung & UDP-Versand:** `protocol.build_move_msg()` erzeugt ein Datagramm (`type: "move_joints"`), das an Port `5005` gesendet wird.
-. **Hardwareübertragung:** Parallel dazu wird `send_angles()` an `pymycobot` übergeben.
-. **Abarbeitung in Unity:** `UnityUdpBridge` empfängt das Datagramm im Hintergrund-Thread und reiht es in `_commandQueue` ein. Der `CommandRunner` holt den Befehl im Hauptthread ab und übergibt die Zielwinkel an `MoveJointsAsync`, welche die Aktuatoren kontinuierlich nachführt.
+. **API-Aufruf & Clamping:** Der Benutzer ruft `send_angles()` auf. Der Controller begrenzt Winkel und Geschwindigkeit auf hardwarekonforme Bereiche und aktualisiert den lokalen Zustandsspeicher `_sim_angles`.
+. **JSON-Erstellung & UDP-Versand:** `protocol.build_move_msg()` erzeugt ein Datagramm (`type: "move_joints"`), das über einen UDP-Socket an Port `5005` gesendet wird.
+. **Hardwareübertragung:** Parallel dazu wird `send_angles()` an die Herstellerbibliothek `pymycobot` übergeben.
+. **Abarbeitung in Unity:** `UnityUdpBridge` empfängt das Datagramm im Hintergrund-Thread und reiht es in die threadsichere `_commandQueue` ein. Der `CommandRunner` holt den Befehl im Hauptthread ab und übergibt die Zielwinkel an `MoveJointsAsync`. Die Coroutine im `ArticulationJointActuator` führt die Gelenke pro `FixedUpdate`-Schritt gleichmässig nach.
 
-=== Szenario 3: Synchrone Gelenkbewegung (`sync_move_joints`)
+=== Szenario 2: Synchrone Gelenkbewegung (`sync_move_joints`)
 
-Dieses Szenario beschreibt zwei getrennte Wartezeiten. Python wartet auf die Hardware; Unity verarbeitet den synchronen Befehl in seiner eigenen Befehlswarteschlange.
+Dieses Szenario beschreibt das koordinierte Warten auf das Erreichen der Zielposition bei physischem Roboter und virtueller Simulation.
 
 image::06_runtime_sync_move.png[align=center, width=80%]
 
 . **API-Aufruf:** Der Benutzer ruft `sync_move_joints()` auf.
-. **Hardware-Synchronisation:** Der Controller ruft `sync_send_angles()` auf `pymycobot` auf. Diese Methode blockiert den Python-Thread, bis die physischen Servos die Zielposition erreicht haben.
-. **Simulation:** Die `UnityUdpBridge` empfängt den Befehl und wartet in Unity mit `MoveJointsSync(...)`, bis die vier Gelenke innerhalb der Toleranz liegen. Python erhält darüber keine Rückmeldung und wartet nicht auf Unity. Wichtig: Während Unity auf `MoveJointsSync` wartet, bleibt die Roboter-Queue blockiert. Alle weiteren Roboterbefehle (auch `led` oder `pump`) werden erst danach abgearbeitet. Die Weltbefehle auf Port `5006` sind davon nicht betroffen.
+. **Hardware-Synchronisation:** Der Controller ruft `sync_send_angles()` auf `pymycobot` auf. Diese Methode blockiert den Python-Thread, bis die physischen Servomotoren die Zielposition eingenommen haben.
+. **Simulation:** Die `UnityUdpBridge` empfängt den Befehl und übergibt ihn an `MoveJointsSync(...)`. Unity wartet in einer Coroutine, bis alle vier Gelenke innerhalb des Toleranzbereichs von `0.5°` liegen. Python erhält darüber keine Rückmeldung und wartet nicht auf Unity.
+. **Queue-Verhalten:** Während Unity auf den Abschluss von `MoveJointsSync` wartet, bleibt die interne Roboter-Befehlswarteschlange blockiert. Nachfolgende Roboterbefehle (z. B. LED oder Werkzeugaktionen) werden erst nach Erreichen der Zielpose abgearbeitet. Weltbefehle auf Port `5006` bleiben davon unberührt.
 
-=== Szenario 4: Dynamisches Objektspawnen (`World.spawn`)
+=== Szenario 3: Endeffektor-Interaktion (Vakuumpumpe einschalten)
 
-Dieses Szenario zeigt das Erzeugen und Konfigurieren eines geometrischen 3D-Körpers in der Simulationsumgebung.
-
-image::06_runtime_spawn.png[align=center, width=80%]
-
-. **Objektdefinition & Prüfung:** Der Benutzer ruft `world.spawn(Box("cube1", ...))` auf. `_validate_object()` prüft Objektnamen, Vektordimensionen und positive Skalierungswerte.
-. **Netzwerkübertragung:** `protocol.build_spawn_msg()` erstellt das JSON-Paket und sendet es an den Weltport `5006`.
-. **Instanziierung in Unity:** `WorldUdpBridge` empfängt das Paket. Im nächsten `Update`-Frame instanziiert der `WorldSpawnManager` das passende Prefab, konfiguriert `Rigidbody` und `GrabbableObject`, setzt Skalierung sowie Materialfarbe und registriert das Objekt in `_spawnedObjects`.
-
-=== Szenario 5: Endeffektor-Interaktion (Vakuumpumpe einschalten)
-
-Dieses Szenario zeigt die Aktivierung der Vakuumpumpe und das physikalische Ansaugen eines manipulierbaren Objekts.
+Dieses Szenario zeigt die Aktivierung eines Werkzeugs und das physikalische Greifen eines Objekts in der Simulationsumgebung.
 
 image::06_runtime_pump.png[align=center, width=80%]
 
-. **API-Aufruf:** Der Benutzer ruft `robot.pump_on()` auf. Voraussetzung: In der Simulation muss vorher `robot.set_end_effector("pump")` aufgerufen worden sein. Ist noch der Greifer aktiv (Standard), ignoriert Unity den Pumpenbefehl und schreibt nur eine Warnung ins Log.
-. **Hardware-Aktivierung:** Der Controller schaltet die GPIO-Pins 2 und 5 über `pymycobot.set_basic_output()` auf Low (`0`), wodurch die physischen Pumpenrelais anziehen.
+. **API-Aufruf & Vorbedingung:** Der Benutzer ruft `robot.pump_on()` auf. Voraussetzung in Unity ist, dass zuvor `robot.set_end_effector("pump")` aufgerufen wurde; andernfalls ignoriert Unity den Pumpenbefehl mit einer Log-Warnung.
+. **Hardware-Aktivierung:** Der Controller schaltet die GPIO-Pins über `pymycobot.set_basic_output()` auf Low (`0`), wodurch die physischen Pumpenrelais anziehen.
 . **Simulations-Aktivierung:** Ein UDP-Paket (`type: "pump"`, `enabled: true`) wird an Port `5005` gesendet.
-. **Greiflogik in Unity:** Der `SuctionPumpController` aktiviert die optische Rückmeldung und sucht mittels `Physics.OverlapSphere` nach Objekten mit der Komponente `GrabbableObject`. Wird ein Objekt gefunden, wird es über `obj.AttachTo(attachPoint)` kinematisch an den Saugkopf gekoppelt.
+. **Greiflogik in Unity:** Der `SuctionPumpController` schaltet die optische Rückmeldung ein und prüft mittels `Physics.OverlapSphere` den Bereich um den Saugkopf auf Objekte mit der Komponente `GrabbableObject`. Wird ein solches Objekt erfasst, wird es über `obj.AttachTo(attachPoint)` kinematisch an den Endeffektor gekoppelt.

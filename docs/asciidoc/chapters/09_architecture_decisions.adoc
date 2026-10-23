@@ -103,7 +103,7 @@ Die folgenden Architectural Decision Records (ADRs) dokumentieren die zentralen 
 * **Entscheidung:** Das System fokussiert auf Kinematik, Werkzeuge und Objektmanipulation; auf eine Kamerasimulation in Unity wird verzichtet.
 * **Betrachtete Alternativen:**
   1. Virtuelle Unity-Kamera mit Bildstream an OpenCV.
-* **Begründung:** Das Hauptziel ist die Programmierung von Manipulations- und Sortieraufgaben. Bildverarbeitung wird an der HSLU direkt an realer Hardware unterrichtet.
+* **Begründung:** Das Hauptziel ist die Programmierung von Manipulations- und Sortieraufgaben. Bildverarbeitung wird an der HSLU in einem anderen Modul unterrichtet.
 * **Konsequenzen:**
   * **Positiv:** Schlanke Architektur, geringe Renderlast, fokussierte Codebasis.
   * **Negativ:** Bildverarbeitungs-Pipelines können nicht virtuell vortrainiert werden.

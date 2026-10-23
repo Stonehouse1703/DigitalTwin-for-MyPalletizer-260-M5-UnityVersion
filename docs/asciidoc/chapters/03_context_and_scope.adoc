@@ -9,7 +9,7 @@ Dieses Kapitel grenzt das System gegenüber externen Akteuren und angebundenen N
 
 Der fachliche Kontext beschreibt die Systemgrenzen aus der Anwenderperspektive. Der Benutzer steuert das Gesamtsystem ausschliesslich über die bereitgestellte Python-Bibliothek. Das System fungiert als Vermittler, validiert Parameter und leitet Aktionen je nach gewähltem Modus an die 3D-Simulation und/oder die physische Roboterhardware weiter.
 
-image::03_context_business.png[align=center, width=75%]
+image::03_context_business.png[align=center, width=50%]
 
 [cols="1,2,2", options="header"]
 |===
@@ -20,7 +20,7 @@ image::03_context_business.png[align=center, width=75%]
 | *Eingabe:* Steuerbefehle (Winkel, Geschwindigkeiten, Werkzeugaktionen, Szenenobjekte). +
 *Ausgabe:* Visuelles Feedback in der Simulation und/oder physische Bewegung der Hardware.
 
-| **Digital Twin System (Python API)**
+| **Digital Twin System**
 | Kapselt die interne Ablaufsteuerung, prüft Grenzwerte und steuert die Zielsysteme modusspezifisch an.
 | *Eingabe:* API-Methodenaufrufe des Benutzers. +
 *Ausgabe:* JSON-Datagramme an Unity; serielle Steuerpakete an die Hardware.

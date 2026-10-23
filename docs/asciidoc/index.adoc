@@ -54,8 +54,5 @@ include::chapters/10_quality_requirements.adoc[]
 include::chapters/11_technical_risks.adoc[]
 
 
-// 12. Glossary
-include::chapters/12_glossary.adoc[]
-
 '''
 image::HSLU-Logo-21-klein.png[align=center]

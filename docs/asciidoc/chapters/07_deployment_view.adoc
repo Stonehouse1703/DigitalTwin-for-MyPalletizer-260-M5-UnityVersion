@@ -9,7 +9,7 @@ Die Verteilungssicht beschreibt die physischen Hardwareknoten, die Software-Lauf
 
 Das System wird auf einem lokalen Arbeitsplatzrechner (*Host-PC*) ausgeführt. Optional ist der physische Roboter *MyPalletizer 260 M5* über eine serielle USB-Verbindung angeschlossen.
 
-image::07_deployment.png[align=center, width=80%]
+image::07_deployment.png[align=center, width=50%]
 
 
 === Bereitstellungsvarianten

@@ -9,7 +9,7 @@ In diesem Kapitel werden die übergreifenden Entwurfsmuster, Architekturkonzepte
 
 Die Kinematik des Roboters wird in Unity realitätsnah und stabil nachgebildet.
 
-image::Joints.png[align=center, width=75%]
+image::Joints.png[align=center, width=50%]
 
 * **Mehrkörper-Kinematik mit `ArticulationBody`:**
   Die vier Drehachsen (`J1` bis `J4`) sind baumförmig angeordnet. Unitys `ArticulationBody` verhindert numerische Dehnungen und sorgt für ein physikalisch stabiles Verhalten der verbundenen Starrkörper (Begründung siehe ADR-6).
@@ -17,17 +17,6 @@ image::Joints.png[align=center, width=75%]
   Um sprunghafte Posenänderungen zu vermeiden, führt der `ArticulationJointActuator` den Zielwert `xDrive.target` schrittweise pro Physikschritt (`FixedUpdate`) nach. Die Geschwindigkeit richtet sich nach dem übergebenen `speed`-Parameter. Ein neuer Befehl für dasselbe Gelenk bricht die laufende Interpolation ab (`Stop()`).
 * **Horizontale Werkzeugausrichtung:**
   Reale Palettierroboter besitzen ein mechanisches Parallelogrammgestänge, welches das Werkzeug stets vertikal nach unten hält. In Unity wird dies im `LateUpdate`-Schritt über die Komponente `GripperDownConstraint` rechnerisch kompensiert (siehe ADR-7).
-
-=== Kommunikations- und Nebenläufigkeitskonzept
-
-Die Kopplung zwischen Python und Unity erfolgt über verbindungsloses UDP mit UTF-8-kodierten JSON-Nachrichten (Formate siehe Kapitel 5).
-
-* **Idempotenz durch absolute Zustände:**
-  Bewegungsdatagramme übertragen stets die absoluten Zielwinkel aller vier Achsen (`j1` bis `j4`). Geht ein einzelnes UDP-Paket verloren, korrigiert das nachfolgende Datagramm die Zielpose automatisch.
-* **Thread-Sicherheit in Unity:**
-  Unity-Engine-Funktionen dürfen ausschliesslich im Hauptthread aufgerufen werden. Die Netzwerk-Bridges empfangen Datagramme in Hintergrund-Threads und reihen sie über threadsichere Sperren (`lock`) in Warteschlangen ein. Der Hauptthread (`CommandRunner` bzw. `WorldSpawnManager`) entnimmt und verarbeitet diese Befehle frame-synchron.
-* **Kanalentkopplung:**
-  Roboterbewegungen (Port `5005`) und Szenenverwaltung (Port `5006`) sind physisch getrennt (Details siehe Kapitel 3 und ADR-4). Dadurch verzögern umfangreiche Weltbefehle keine zeitkritischen Fahrbefehle.
 
 === Szenen- und Objektlebenszyklus
 
@@ -51,13 +40,6 @@ Das Gesamtsystem schützt Roboter und Simulation durch ein zweistufiges Validier
   - Gelenkwinkel werden auf die mechanischen Grenzen limitiert (Achsgrenzen siehe Kapitel 2). Unity sichert die Grenzen im `ArticulationBody` zusätzlich ab.
   - Geschwindigkeiten werden auf den Bereich `1..100` begrenzt.
   - RGB-Farbwerte werden auf den Wertebereich `0..255` geklemmt.
-
-=== Fehlerbehandlung
-
-* **Python-Schicht:**
-  Ungültige Konfigurationen oder fehlerhafte Parameter lösen gezielte Ausnahmen aus (`InvalidConfigError`, `ValueError`, `RobotConnectionError`). Das Skript erhält dadurch sofortiges, synchrones Feedback.
-* **Unity-Schicht:**
-  Die Simulation verfolgt eine fehlertolerante "Log-and-Continue"-Strategie. Unbekannte oder syntaktisch fehlerhafte Nachrichten werden verworfen und im Unity-Editor als Warnung protokolliert. Die Simulationsschleife läuft unterbrechungsfrei weiter.
 
 === Test- und Qualitätssicherungskonzept
 

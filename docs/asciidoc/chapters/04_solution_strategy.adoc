@@ -9,7 +9,7 @@ Die Lösungsstrategie fasst die grundlegenden architektonischen Entwurfsentschei
 
 [cols="1,2,2,1", options="header"]
 |===
-| Qualitätsziel (Kap. 1.2) | Architektonische Herausforderung | Gewählter Lösungsansatz | Details
+| Qualitätsziel | Architektonische Herausforderung | Gewählter Lösungsansatz | Details
 
 | **1. Austauschbarkeit**
 | Steuerungsskripte sollen identisch für Simulation und Hardware funktionieren.
