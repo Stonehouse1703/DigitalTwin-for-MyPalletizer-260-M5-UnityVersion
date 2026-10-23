@@ -7,12 +7,12 @@ In diesem Kapitel werden die übergreifenden Entwurfsmuster, Architekturkonzepte
 
 === Simulations- und Kinematikkonzept
 
-Die Kinematik des MyPalletizer 260 M5 wird in Unity über `ArticulationBody`-Komponenten abgebildet. Diese basieren auf dem Featherstone-Algorithmus der PhysX-Engine und bieten eine exakte Berechnung serieller Mehrkörpersysteme ohne Gelenkdehnungen (*Joint Separation*).
+Die Kinematik des MyPalletizer 260 M5 wird in Unity über `ArticulationBody`-Komponenten abgebildet. Das ist der Unity-Baustein für Roboterarme: Die Glieder hängen fest aneinander und können sich nicht voneinander lösen oder "auseinanderdriften", wie es bei normalen `Rigidbody`-Gelenken vorkommen kann. Intern rechnet dafür die PhysX-Engine.
 
 image::Joints.png[align=center, width=75%]
 
 * **Gelenkhierarchie:** Die vier Drehachsen (`J1` bis `J4`) sind baumförmig angeordnet. Eine Drehung der Basis (`J1`) oder der Schulter (`J2`) bewegt alle nachfolgenden Glieder und Werkzeuge physikalisch korrekt mit.
-* **Interpolation:** `ArticulationJointActuator` berechnet die erforderliche Schrittweite im `FixedUpdate`-Zyklus über `degPerSec = max(minDegPerSec, speed * speedScale)` und führt das Gelenk über `xDrive.target` flüssig nach.
+* **Interpolation:** `ArticulationJointActuator` rechnet die Geschwindigkeit mit `degPerSec = max(minDegPerSec, speed * speedScale)` in Grad pro Sekunde um. Eine Coroutine schiebt dann pro `FixedUpdate`-Schritt `xDrive.target` ein kleines Stück Richtung Zielwinkel. So bewegt sich das Gelenk gleichmässig statt zu springen.
 * **Kompensation der Palettiermechanik:** Reale Palettierroboter besitzen ein mechanisches Parallelogrammgestänge, welches den Werkzeugkopf stets vertikal hält. In Unity wird dies im `LateUpdate`-Schritt über die Komponente `GripperDownConstraint` softwareseitig kompensiert.
 
 === Kommunikations- und Protokollkonzept
@@ -22,7 +22,7 @@ Die Netzwerkkommunikation basiert auf verbindungslosen UDP-Datagrammen mit UTF-8
 * **Porttrennung:**
   ** **Port `5005` (Roboterkanal):** Hochfrequente Gelenkwinkel, LED-Farben und Werkzeugbefehle.
   ** **Port `5006` (Weltkanal):** Diskrete Ereignisse zur Objekt- und Szenenverwaltung (`spawn`, `delete`, `clear`).
-* **Wurzelschema:** Jedes JSON-Paket enthält eine Versionsnummer (`"v": 1`) und eine Typkennung (`"type"`).
+* **Wurzelschema:** Jedes JSON-Paket enthält eine Versionsnummer (`"v": 1`) und eine Typkennung (`"type"`). Unity wertet heute nur `type` aus. Die Versionsnummer wird im Roboterkanal gar nicht eingelesen und im Weltkanal zwar eingelesen, aber nicht geprüft. Sie ist eine Vorbereitung für spätere Protokolländerungen.
 * **Absolute Zielwerte:** Bewegungsnachrichten übertragen stets die absoluten Zielwinkel aller vier Achsen. Bei einer folgenden Bewegung kann Unity damit wieder auf den aktuellen Zielzustand gebracht werden. Für einzelne Welt-, LED- und Werkzeugbefehle gibt es keine Quittierung oder Wiederholung.
   
 === Welt- und Szenarienkonzept
@@ -34,7 +34,12 @@ Die Netzwerkkommunikation basiert auf verbindungslosen UDP-Datagrammen mit UTF-8
 === Schutz- und Validierungskonzept
 
 * **Parameterprüfung:** `Robot` prüft fehlende Hardware-Ports. `World` prüft Objektnamen, Vektorlängen und positive Skalierungswerte.
-* **Software-Clamping:** Gelenkwinkel werden vor dem Versand auf die exakten Hardwarespezifikationen begrenzt (`J1: -160..160°`, `J2: 0..90°`, `J3: -92..60°`, `J4: -360..360°`). Geschwindigkeiten werden auf `1..100` und RGB-Werte auf `0..255` begrenzt.
+* **Software-Clamping:** Gelenkwinkel werden vor dem Versand auf die exakten Hardwarespezifikationen begrenzt (`J1: -160..160°`, `J2: 0..90°`, `J3: -92..60°`, `J4: -360..360°`). Geschwindigkeiten werden auf `1..100` und RGB-Werte auf `0..255` begrenzt. Unity begrenzt die Zielwinkel zusätzlich auf die Gelenkgrenzen im `ArticulationBody`. Die Grenzen sind also doppelt abgesichert, falls jemand das UDP-Protokoll ohne die Python-API anspricht.
+
+=== Fehlerbehandlung
+
+* **Python-Seite:** Ungültige Eingaben lösen sofort eine Exception aus, zum Beispiel `InvalidConfigError` (falsche Konfiguration oder Objektdaten), `ValueError` (ungültiges Werkzeug oder Gelenk) und `RobotConnectionError` (Hardware nicht erreichbar). Winkel, Geschwindigkeit und Farben werden dagegen nicht abgelehnt, sondern auf den erlaubten Bereich begrenzt.
+* **Unity-Seite:** Unbekannte oder fehlerhafte Nachrichten werden ignoriert und als Warnung ins Unity-Log geschrieben. Es gibt keinen Fehler, der an Python zurückgemeldet wird. Wenn etwas in der Simulation nicht reagiert, ist das Unity-Log der erste Ort zum Nachsehen.
 
 === Test- und Qualitätssicherungskonzept
 

@@ -52,9 +52,9 @@ Die folgenden Architectural Decision Records (ADRs) dokumentieren die zentralen 
 * **Betrachtete Alternativen:**
   1. Gemeinsamer UDP-Kanal für alle Nachrichtentypen.
   2. Einsatz von TCP oder WebSockets.
-* **Begründung:** Die Porttrennung verhindert, dass das Laden grosser Szenarien oder Presets die kontinuierliche Roboterkinematik blockiert.
+* **Begründung:** Jeder Kanal hat in Unity eigenen Empfangs-Thread und eigene Warteschlange. Roboterbefehle und Weltbefehle stören sich dadurch nicht gegenseitig, zum Beispiel beim Laden eines Presets mit vielen Objekten.
 * **Konsequenzen:**
-  * **Positiv:** Klare funktionale Entkopplung; keine Latenzspitzen bei der Roboterbewegung.
+  * **Positiv:** Klare funktionale Entkopplung; Weltbefehle warten nicht auf Roboterbewegungen. Innerhalb des Roboterkanals gibt es aber weiterhin nur eine Queue: Ein `sync_move_joints` hält die folgenden Roboterbefehle an.
   * **Negativ:** Zwei lokale Netzwerkports müssen freigehalten und konfiguriert werden.
 
 === ADR-5: Bereitstellung vordefinierter Szenarien über Presets

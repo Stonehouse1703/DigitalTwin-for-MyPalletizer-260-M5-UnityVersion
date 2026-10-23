@@ -1,5 +1,8 @@
 @startuml
 !include style.puml
+skinparam linetype polyline
+skinparam nodesep 70
+skinparam ranksep 80
 
 package "mypalletizer (Python Control Layer)" {
     component "Robot\n(High-Level Fassade)" as Robot
@@ -13,18 +16,24 @@ package "mypalletizer (Python Control Layer)" {
 
 component "pymycobot\n(Hersteller-Treiber)" as PyMyCobot
 
-Robot --> Controller : Delegiert Roboterbefehle
-Robot ..> Errors : Validierungsfehler
+Robot ..> Controller : delegiert
+Controller ..> Protocol : erstellt Roboter-JSON
+Controller ..> PyMyCobot : serielle Ansteuerung
 
-Controller --> Protocol : Erstellt Roboter-JSON
-Controller --> PyMyCobot : Serielle Hardwareansteuerung
-Controller ..> Errors : Verbindungsfehler
+World ..> Protocol : erstellt Welt-JSON
+World ..> Presets : lädt Szenarien
+Presets ..> Objects : instanziiert
 
-World --> Protocol : Erstellt Welt-JSON
-World --> Presets : Lädt Szenarien
-World --> Objects : Nutzt Datenklassen
-World ..> Errors : Konfigurationsfehler
+World ..> Objects : nutzt
+Robot ..> Errors
+Controller ..> Errors
+World ..> Errors
 
-Presets --> Objects : Instanziiert WorldObject-Objekte
+note bottom of Errors
+Robot: InvalidConfigError
+Controller: RobotConnectionError
+World: InvalidConfigError,
+WorldConnectionError
+end note
 
 @enduml

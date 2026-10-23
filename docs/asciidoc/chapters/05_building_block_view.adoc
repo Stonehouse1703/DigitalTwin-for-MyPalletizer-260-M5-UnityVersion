@@ -41,7 +41,7 @@ image::05_python_l2.png[align=center, width=80%]
 | Baustein | Verantwortung und Aufgaben
 
 | **`Robot`**
-| High-Level-Fassade für die Robotersteuerung (`send_angles`, `sync_move_joints`, `set_color`, `set_end_effector`, `set_gripper_state`, `pump_on`, `pump_off`).
+| High-Level-Fassade für die Robotersteuerung (`send_angles`, `sync_move_joints`, `set_color`, `set_end_effector`, `set_gripper_state`, `pump_on`, `pump_off`). Dazu kommen `send_angle` (ein einzelnes Gelenk), `get_angles`, `sleep` und `close`. `Robot` kann auch als `with`-Block verwendet werden, dann wird `close()` automatisch aufgerufen.
 
 | **`MyPalletizerController`**
 | Zentraler Dispatcher und Treiber. Führt Software-Clamping für Winkel, Geschwindigkeit und RGB durch; verwaltet den lokalen Zustandsspeicher `_sim_angles`; hält den UDP-Socket für Port `5005`; kapselt die `MyPalletizer260`-Hardwareinstanz.
@@ -82,7 +82,7 @@ image::05_unity_l2.png[align=center, width=85%]
 | Koordiniert die vier Gelenkaktuatoren `j1` bis `j4`. Bietet `MoveJointsAsync` (asynchron) und `MoveJointsSync`.
 
 | **`ArticulationJointActuator`**
-| Steuert den `ArticulationBody` eines einzelnen Gelenks über dessen `xDrive` und führt die geschwindigkeitsabhängige Winkelinterpolation im `FixedUpdate` aus.
+| Steuert den `ArticulationBody` eines einzelnen Gelenks über dessen `xDrive` und fährt das Gelenk mit einer Coroutine in kleinen Schritten zum Zielwinkel (ein Schritt pro `FixedUpdate`, Geschwindigkeit abhängig vom `speed`-Wert).
 
 | **`GripperDownConstraint`**
 | Hält den Werkzeugkopf im `LateUpdate` vertikal nach unten ausgerichtet (Kompensation der Palettiermechanik).
@@ -107,6 +107,9 @@ image::05_unity_l2.png[align=center, width=85%]
 
 | **`GrabbableObject`**
 | Kennzeichnungskomponente für interaktionsfähige Objekte; verwaltet hierarchische Fixierung (`AttachTo`) und Freigabe (`Detach`).
+
+| **`CameraViewManager`**
+| Reine Bedienhilfe der Simulation: Wechselt per Dropdown zwischen vordefinierten Kameraperspektiven. Das ist keine Kamerasimulation im Sinne von ADR-8 und hat keine Verbindung zu Python.
 |===
 
 === Level 3: Detailbausteine
@@ -117,6 +120,8 @@ image::05_controller_l3.png[align=center, width=75%]
 
 * **Gelenkwinkelbegrenzung (`_clamp`):** Schützt die Hardware durch hartcodierte Grenzwerte (`j1: -160..160°`, `j2: 0..90°`, `j3: -92..60°`, `j4: -360..360°`).
 * **Telemetrie-Simulation (`get_angles`):** Gibt im Modus `virtual` die Werte aus `_sim_angles` und im Modus `real`/`both` die von der Hardware gelesenen Gelenkdaten zurück.
+* **Einzelgelenk (`send_angle`):** Diese Methode schreibt nur an die Hardware. Im Modus `virtual` löst sie `NotImplementedError` aus, im Modus `both` bewegt sie nur den echten Roboter und nicht die Simulation (siehe Kapitel 11).
+* **Werkzeugwahl (`set_end_effector`):** Die Auswahl `gripper` oder `pump` geht nur an Unity. Der echte Roboter hat kein Gegenstück dazu, dort wird das Werkzeug mechanisch montiert.
 
 ==== `World` und `WorldObject` (Klassendiagramm)
 
@@ -171,4 +176,4 @@ image::05_world_l3.png[align=center, width=75%]
 
 image::05_actuators_l3.png[align=center, width=70%]
 
-* **Winkelberechnung:** Der `ArticulationJointActuator` berechnet die Geschwindigkeit via `degPerSec = max(minDegPerSec, speed * speedScale)` und führt die Rotation über `xDrive.target` im `FixedUpdate`-Zyklus nach.
+* **Winkelberechnung:** Der `ArticulationJointActuator` berechnet die Geschwindigkeit via `degPerSec = max(minDegPerSec, speed * speedScale)` und führt die Rotation über `xDrive.target` nach. Das passiert in einer Coroutine, die pro `FixedUpdate`-Schritt den Zielwert ein Stück weiterschiebt. Der Zielwinkel wird dabei zusätzlich auf die Gelenkgrenzen des `ArticulationBody` begrenzt. Ein neuer Befehl für dasselbe Gelenk bricht die laufende Bewegung ab (`Stop()`).

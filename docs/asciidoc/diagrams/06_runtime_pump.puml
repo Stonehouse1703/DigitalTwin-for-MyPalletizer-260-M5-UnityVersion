@@ -8,58 +8,55 @@ actor "Benutzer" as User
 participant "Robot" as Robot
 participant "MyPalletizerController" as MPC
 participant "pymycobot" as PMC
-participant "Unity Simulation" as Unity
-participant "UnityUdpBridge" as UUB
+participant "UnityUdpBridge\n(Port 5005)" as UUB
 participant "RobotToolManager" as RTM
 participant "SuctionPumpController" as SPC
 participant "GrabbableObject" as GO
 
-User -> Robot : pump_on()
-activate Robot
+note over User, Robot
+Voraussetzung: Zuvor wurde set_end_effector("pump") aufgerufen.
+end note
 
-Robot -> MPC : pump_on()
-activate MPC
+User -> Robot ++ : pump_on()
+Robot -> MPC ++ : pump_on()
 
-group Simulations-Pfad (UDP Port 5005)
-    MPC -> Unity : UDP sendto (type: "pump", enabled: true)
-    activate Unity
-    activate UUB
-    Unity -> UUB : _commandQueue.Enqueue(cmd)
+opt Modus 'virtual' oder 'both'
+    MPC ->> UUB : UDP sendto 127.0.0.1:5005\n(type: "pump", enabled: true)
+    note right of UUB
+    Hintergrund-Thread:
+    _commandQueue.Enqueue(cmd)
+    end note
 end
 
-group Hardware-Pfad (Serial)
+opt Modus 'real' oder 'both'
     MPC -> PMC : set_basic_output(2, 0)
     MPC -> PMC : set_basic_output(5, 0)
 end
 
-MPC --> Robot : fertig
-deactivate MPC
-Robot --> User : Werkzeug aktiviert
-deactivate Robot
+MPC --> Robot -- : fertig
+Robot --> User -- : Rückkehr
 
-== Ausführung in Unity ==
-Unity -> UUB : CommandRunner()
-UUB -> UUB : cmd = _commandQueue.Dequeue()
-UUB -> RTM : SetPump(true)
-activate RTM
-RTM -> SPC : PumpOn()
-activate SPC
+== Unity-Hauptthread (CommandRunner) ==
 
-SPC -> SPC : Setze Visuals (pumpVisualOn aktiv)
-SPC -> SPC : hits = Physics.OverlapSphere(attachPoint, suctionRadius)
-alt GrabbableObject im Erfassungsbereich
-    SPC -> GO : AttachTo(attachPoint)
-    activate GO
-    GO -> GO : isKinematic=true, parent=attachPoint
-    GO --> SPC : Objekt fixiert
-    deactivate GO
+UUB -> UUB ++ : cmd = _commandQueue.Dequeue()
+UUB -> RTM ++ : SetPump(true)
+
+alt CurrentTool == "pump"
+    RTM -> SPC ++ : PumpOn()
+    SPC -> SPC : IsOn = true, Visuals umschalten
+    SPC -> SPC : hits = Physics.OverlapSphere(attachPoint, suctionRadius)
+    SPC -> SPC : nächstes GrabbableObject wählen\n(canBePicked und nicht isAttached)
+    opt Kandidat gefunden
+        SPC -> GO ++ : AttachTo(attachPoint)
+        GO -> GO : isKinematic = true, useGravity = false,\nSetParent(attachPoint)
+        GO --> SPC -- : Objekt fixiert
+    end
+    SPC --> RTM -- : fertig
+else anderes Werkzeug aktiv
+    RTM -> RTM : Warnung, Befehl ignoriert
 end
 
-SPC --> RTM : fertig
-deactivate SPC
-RTM --> UUB : fertig
-deactivate RTM
+RTM --> UUB -- : fertig
 deactivate UUB
-deactivate Unity
 
 @enduml

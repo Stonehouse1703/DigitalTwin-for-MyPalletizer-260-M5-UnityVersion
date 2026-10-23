@@ -33,7 +33,7 @@ class ArticulationBody <<Unity Component>> {
     + xDrive: ArticulationDrive
 }
 
-MyPalletizerArticulationAdapter "1" *-- "4" ArticulationJointActuator : koordiniert
-ArticulationJointActuator "1" o-- "1" ArticulationBody : steuert physikalisch
+MyPalletizerArticulationAdapter "1" --> "4" ArticulationJointActuator : j1..j4
+ArticulationJointActuator "1" --> "1" ArticulationBody : _ab (RequireComponent)
 
 @enduml

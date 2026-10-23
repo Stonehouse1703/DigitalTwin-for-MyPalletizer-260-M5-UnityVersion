@@ -1,6 +1,8 @@
 @startuml
 !include style.puml
-left to right direction
+skinparam linetype polyline
+skinparam nodesep 90
+skinparam ranksep 90
 
 actor "Benutzer / Entwickler" as User
 
@@ -8,12 +10,11 @@ rectangle "Digital Twin System\n(Python API)" as DTS
 rectangle "Unity Simulation\n(3D & Physik)" as Unity
 rectangle "MyPalletizer 260 M5\n(Hardware)" as Hardware
 
-User --> DTS : steuert
-DTS --> Unity : UDP
-DTS --> Hardware : seriell
-Unity -[hidden]down- Hardware
-
-Unity ..> User : Feedback
-Hardware ..> User : Ist-Werte
+User -right-> DTS : Steuerbefehle
+DTS -right-> Unity : Befehle zur Simulation
+DTS -down-> Hardware : Befehle zur Hardware
+Hardware .up.> DTS : Ist-Winkel
+Unity .down.> User : Visuelles Feedback
+Hardware .left.> User : Physische Bewegung
 
 @enduml

@@ -1,31 +1,33 @@
 @startuml
 !include style.puml
+skinparam linetype polyline
+skinparam nodesep 80
 
-node "Host-PC\n(Windows / Linux / macOS)" as HostPC {
-    
-    artifact "Python 3.10+ Runtime" as PyEnv {
-        component "User Application\n(user_script.py)" as App
-        component "mypalletizer API\n(Python Package)" as Pkg
-        component "pymycobot Driver\n(Hardware-Treiber)" as Driver
+node "Host-PC\n(Windows / Linux / macOS)" <<device>> as HostPC {
+
+    node "Python Runtime 3.10+" <<execution environment>> as PyEnv {
+        artifact "user_script.py\n(Benutzerskript)" as App
+        artifact "mypalletizer-api\n(Python-Paket, Wheel)" as Pkg
+        artifact "pymycobot\n(Hersteller-Treiber)" as Driver
     }
-    
-    artifact "Unity Standalone Application / Editor" as UnityEnv {
-        component "Unity 3D Simulation\n(C# Engine / PhysX)" as UnityApp
+
+    node "Unity Runtime\n(Standalone oder Editor)" <<execution environment>> as UnityEnv {
+        artifact "Unity-Simulation\n(.exe / .x86_64 / .app)" as UnityApp
     }
 }
 
-node "MyPalletizer 260 M5 (Hardware)" as HardwareNode {
-    component "M5Stack Basic Controller (ESP32 Firmware)" as Controller
-    component "4x Servos (J1..J4) &\nEndeffektoren (Pumpe/Greifer)" as Actuators
+node "MyPalletizer 260 M5" <<device>> as HardwareNode {
+    node "M5Stack Basic Controller\n(ESP32-Firmware)" <<device>> as Controller
+    node "4 Servos (J1..J4) und\nEndeffektoren (Pumpe / Greifer)" <<device>> as Actuators
 }
 
-App --> Pkg : API-Methoden
-Pkg --> Driver : Interner Treiberaufruf
+App ..> Pkg : <<use>>
+Pkg ..> Driver : <<use>>
 
-Pkg --> UnityApp : UDP / JSON \nRoboterkanal
-Pkg --> UnityApp : UDP / JSON \nWeltkanal
+Pkg -right- UnityApp : UDP / JSON, Port 5005 (Roboterkanal)
+Pkg -right- UnityApp : UDP / JSON, Port 5006 (Weltkanal)
 
-Driver --> Controller : USB/Serial 
-Controller --> Actuators : Bus-Signale
+Driver -down- Controller : USB-UART, 115200 Baud, 8N1
+Controller -- Actuators : Bus-Signale
 
 @enduml

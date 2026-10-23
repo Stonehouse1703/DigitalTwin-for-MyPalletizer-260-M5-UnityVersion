@@ -1,0 +1,74 @@
+ifndef::imagesdir[:imagesdir: ../images]
+
+[[section-glossary]]
+== Glossary
+
+Kurze Erklärungen der Begriffe, die in dieser Dokumentation und im Code häufig vorkommen.
+
+[cols="1,3", options="header"]
+|===
+| Begriff | Bedeutung
+
+| **Digitaler Zwilling**
+| Ein virtuelles Abbild des echten Roboters. Hier: die Unity-Simulation, die sich gleich bewegt wie der MyPalletizer.
+
+| **MyPalletizer 260 M5**
+| Der echte Roboterarm von Elephant Robotics mit vier Drehgelenken.
+
+| **J1 bis J4 (`j1` bis `j4`)**
+| Die vier Gelenke des Roboters: Basisdrehung, Schulter, Ellbogen und Handgelenk (Drehung des Werkzeugs).
+
+| **Endeffektor / Werkzeug**
+| Das Werkzeug am Armende. Es gibt den Parallelgreifer (`gripper`) und die Saugpumpe (`pump`).
+
+| **Modus (`virtual`, `real`, `both`)**
+| Legt fest, wohin `Robot` die Befehle schickt: nur an Unity, nur an den echten Roboter oder an beide.
+
+| **Fassade**
+| Eine einfache Klasse, die nach aussen alles anbietet und die komplizierten Details dahinter versteckt. Hier: `Robot` und `World`.
+
+| **Controller (`MyPalletizerController`)**
+| Die Klasse hinter `Robot`. Sie begrenzt die Werte, schickt UDP-Nachrichten an Unity und ruft `pymycobot` für den echten Roboter auf.
+
+| **`pymycobot`**
+| Die Python-Bibliothek des Herstellers für die serielle Verbindung zum Roboter.
+
+| **UDP**
+| Einfaches Netzwerkprotokoll: Pakete werden abgeschickt, ohne dass geprüft wird, ob sie ankommen. Dafür ist es schnell.
+
+| **Datagramm**
+| Ein einzelnes UDP-Paket. Hier enthält es immer eine JSON-Nachricht.
+
+| **Clamping**
+| Ein zu grosser oder zu kleiner Wert wird auf die nächste erlaubte Grenze gesetzt. Beispiel: 200° bei J1 wird zu 160°.
+
+| **Fail-Fast**
+| Ein ungültiger Wert führt sofort zu einem Fehler, bevor etwas gesendet wird.
+
+| **Fire-and-Forget**
+| Der Befehl wird abgeschickt, und das Programm macht sofort weiter, ohne auf das Ergebnis zu warten.
+
+| **Queue (Warteschlange)**
+| Eingehende Befehle werden gesammelt und der Reihe nach im Unity-Hauptthread abgearbeitet. Das ist nötig, weil Unity-Objekte nur dort verändert werden dürfen.
+
+| **Hauptthread**
+| Der Thread, in dem Unity Bilder zeichnet und Skripte (`Update`, `FixedUpdate`) ausführt.
+
+| **`ArticulationBody`**
+| Unity-Komponente für Roboterarme. Sie verbindet Glieder über Gelenke, die sich nicht voneinander lösen.
+
+| **Prefab**
+| Eine in Unity vorbereitete Vorlage, aus der zur Laufzeit Objekte erzeugt werden (hier: Box, Kugel, Zylinder).
+
+| **Preset**
+| Ein vordefiniertes Szenario mit Objekten an festen Positionen, zum Beispiel `three_blocks`.
+
+| **Pick-and-Place**
+| Ein Objekt greifen, verschieben und wieder ablegen.
+
+| **ADR**
+| Architecture Decision Record. Kurze Beschreibung einer Entscheidung mit Gründen und Folgen (Kapitel 9).
+
+| **arc42**
+| Vorlage für Architekturdokumentation mit zwölf festen Kapiteln.
+|===

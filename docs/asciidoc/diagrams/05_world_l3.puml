@@ -2,10 +2,11 @@
 !include style.puml
 
 class World {
-    - ip: str
-    - udp_port: int
-    - sock: Optional[socket]
+    + ip: str
+    + udp_port: int
+    + sock: Optional[socket]
     __
+    + __init__(ip="127.0.0.1", udp_port=5006)
     + spawn(obj: WorldObject)
     + delete(name: str)
     + clear()
@@ -15,22 +16,34 @@ class World {
     __
     - _send_udp(payload: dict)
     - _validate()
-    - _validate_object(obj: WorldObject)
+    - {static} _validate_object(obj: WorldObject)
 }
 
-abstract class WorldObject {
-    + object_type: str
+abstract class WorldObject <<dataclass>> {
     + name: str
-    + position: tuple[float, float, float]
-    + rotation: tuple[float, float, float]
-    + scale: tuple[float, float, float]
-    + color: tuple[int, int, int]
-    + is_static: bool
+    + position: Vec3
+    + rotation: Vec3 = (0, 0, 0)
+    + scale: Vec3 = (1, 1, 1)
+    + color: Rgb = (255, 255, 255)
+    + is_static: bool = False
+    __
+    + {abstract} object_type : str <<property>>
 }
 
-class Box extends WorldObject
-class Sphere extends WorldObject
-class Cylinder extends WorldObject
+class Box <<dataclass>> {
+    + scale: Vec3 = (0.05, 0.05, 0.05)
+    + object_type : str = "box"
+}
+
+class Sphere <<dataclass>> {
+    + scale: Vec3 = (0.05, 0.05, 0.05)
+    + object_type : str = "sphere"
+}
+
+class Cylinder <<dataclass>> {
+    + scale: Vec3 = (0.05, 0.08, 0.05)
+    + object_type : str = "cylinder"
+}
 
 class protocol <<module>> {
     + build_spawn_msg(...) : dict
@@ -42,8 +55,14 @@ class presets <<module>> {
     + PRESETS: dict[str, list[WorldObject]]
 }
 
-World ..> WorldObject : Validiert & verarbeitet
-World ..> protocol : Nutzt Message Builder
-World ..> presets : Lädt Objektlisten
+WorldObject <|-- Box
+WorldObject <|-- Sphere
+WorldObject <|-- Cylinder
+
+World ..> WorldObject : <<use>>
+World ..right..> protocol : <<use>>
+World ..right..> presets : <<use>>
+protocol -[hidden]down- presets
+presets o-left- "0..*" WorldObject : PRESETS
 
 @enduml

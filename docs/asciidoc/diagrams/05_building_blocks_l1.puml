@@ -1,30 +1,20 @@
 @startuml
 !include style.puml
-left to right direction
+skinparam linetype polyline
 skinparam nodesep 90
-skinparam ranksep 70
+skinparam ranksep 90
 
 actor "Benutzer / Entwickler" as User
 
 package "Digital Twin Gesamtsystem" as DTS {
     component "Python Control Layer\n(mypalletizer API)" as PythonLayer
     component "Unity Simulation Layer\n(Unity 3D / C#)" as UnityLayer
-    PythonLayer -[hidden]down- UnityLayer
 }
 
 node "MyPalletizer 260 M5\n(Physische Hardware)" as Hardware
 
-User --> PythonLayer : Python-API
-PythonLayer --> UnityLayer : UDP / JSON
-PythonLayer --> Hardware : USB / Serial
-
-note bottom of DTS
-Roboterkanal: Port 5005
-Weltkanal: Port 5006
-end note
-
-note bottom of Hardware
-Hardware-Istwerte über get_angles()
-end note
+User -right-> PythonLayer : Python-API
+PythonLayer -right-> UnityLayer : UDP / JSON\nPort 5005 (Roboter)\nPort 5006 (Welt)
+PythonLayer <-down-> Hardware : USB / Serial\n(Ist-Winkel über get_angles)
 
 @enduml

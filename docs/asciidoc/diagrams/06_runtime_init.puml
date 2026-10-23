@@ -5,43 +5,41 @@ hide footbox
 
 actor "Benutzer" as User
 participant "Robot" as Robot
-participant "MyPalletizerController" as MPC
-participant "World" as World
-participant "pymycobot" as PMC
 
-User -> Robot : Robot(mode=BOTH, port="/dev/ttyUSB0")
-activate Robot
+User -> Robot ++ : Robot(mode=BOTH, port="/dev/ttyUSB0")
 
 Robot -> Robot : _validate(config)
-activate Robot #EAECEE
-deactivate Robot
 
-Robot -> MPC : MyPalletizerController(mode="both", port="/dev/ttyUSB0", ...)
-activate MPC
+create participant "MyPalletizerController" as MPC
+participant "pymycobot" as PMC
+participant "World" as World
+Robot -> MPC ++ : <<create>> mode="both", port, ip, udp_port, baudrate
 
-MPC -> PMC : MyPalletizer260("/dev/ttyUSB0", 115200)
-activate PMC
-PMC --> MPC : Verbindung hergestellt
-deactivate PMC
+opt Modus 'real' oder 'both'
+    MPC -> PMC ++ : MyPalletizer260("/dev/ttyUSB0", 115200)
+    PMC --> MPC -- : Objekt (serielle Verbindung offen)
+    MPC -> MPC : sleep(2)
+    MPC -> PMC ++ : power_on()
+    PMC --> MPC -- : ok
+    MPC -> MPC : sleep(0.5)
+end
 
-MPC -> PMC : power_on()
-activate PMC
-deactivate PMC
+opt Modus 'virtual' oder 'both'
+    MPC -> MPC : UDP-Socket erzeugen\n(Ziel: 127.0.0.1:5005)
+end
 
-MPC -> MPC : socket(AF_INET, SOCK_DGRAM) (Port 5005)
-activate MPC #EAECEE
-deactivate MPC
+MPC --> Robot -- : Controller initialisiert
+Robot --> User -- : Robot-Instanz betriebsbereit
 
-MPC --> Robot : Controller initialisiert
-deactivate MPC
+User -> World ++ : World(ip="127.0.0.1", udp_port=5006)
+World -> World : UDP-Socket erzeugen
+World -> World : _validate()
+World --> User -- : World-Instanz betriebsbereit
 
-Robot --> User : Robot-Instanz betriebsbereit
-deactivate Robot
-
-User -> World : World(ip="127.0.0.1", udp_port=5006)
-activate World
-World -> World : socket(AF_INET, SOCK_DGRAM)
-World --> User : World-Instanz betriebsbereit
-deactivate World
+note over User, World
+Robot und World sind unabhängig voneinander.
+UDP baut keine Verbindung auf: Ob Unity läuft,
+wird nicht geprüft.
+end note
 
 @enduml

@@ -25,7 +25,7 @@ Dieses Kapitel dokumentiert bekannte architektonische und technologische Risiken
 
 | **Port-Kollisionen**
 | Standard-UDP-Ports `5005` und `5006` könnten belegt sein.
-| Die Standardports sind in Python und Unity auf `5005` und `5006` ausgelegt. Eine durchgängige Laufzeitkonfiguration ist derzeit nicht umgesetzt.
+| Die Standardports sind in Python und Unity auf `5005` und `5006` ausgelegt. In Python lassen sie sich über `udp_port` ändern, in Unity nur über den Inspector. Eine gemeinsame Konfiguration gibt es nicht, beide Seiten müssen von Hand zusammenpassen.
 |===
 
 === Technologische und Implementierungsrisiken
@@ -51,3 +51,36 @@ Dieses Kapitel dokumentiert bekannte architektonische und technologische Risiken
   Werkzeuge nutzen ein kinematisches Kopplungsmodell (`AttachTo`), anstatt komplexe Reibungskräfte physikalisch zu berechnen. Für Lehrzwecke ist dies stabil und performant; ein Reibungsmodell kann bei Bedarf modular nachgerüstet werden.
 * **Bidirektionaler Telemetrie-Rückkanal:**
   Unity sendet derzeit keine Messwerte an Python zurück; `get_angles()` basiert in der Simulation auf `_sim_angles`. Eine spätere Erweiterung um einen Rückkanal (z. B. auf Port `5007`) ist architektonisch vorbereitet.
+
+=== Bekannte Einschränkungen im Code
+
+Diese Punkte sind keine Annahmen, sondern aus dem Quellcode abgeleitet. Sie sind wichtig, wenn man Skripte schreibt oder den Code erweitert.
+
+[cols="1,2,2", options="header"]
+|===
+| Einschränkung | Auswirkung | Umgehung / Idee
+
+| **`send_angle` bewegt die Simulation nicht**
+| Im Modus `virtual` kommt `NotImplementedError`. Im Modus `both` bewegt sich nur der echte Roboter, die Simulation steht still.
+| Für Skripte `send_angles` oder `sync_move_joints` mit allen vier Gelenken verwenden. Später könnte ein Protokolltyp für ein einzelnes Gelenk ergänzt werden.
+
+| **`sync_move_joints` blockiert die Unity-Roboter-Queue**
+| Folgende Befehle (LED, Werkzeug, Pumpe, weitere Bewegungen) warten, bis alle Gelenke im Toleranzbereich von 0.5° sind. Erreicht ein Gelenk den Zielwinkel nie (zum Beispiel weil der Zielwert ausserhalb der Gelenkgrenzen in Unity liegt), hängt die Queue.
+| Ein Timeout in `MoveJointsSync` ergänzen.
+
+| **Werkzeugbefehle hängen vom aktiven Werkzeug ab**
+| `pump_on()` oder `set_gripper_state()` werden in Unity ignoriert, wenn das andere Werkzeug aktiv ist (Standard: `gripper`).
+| Vorher `set_end_effector()` aufrufen. Ein Hinweis in der Python-API wäre hilfreich.
+
+| **Keine Rückmeldung von Unity**
+| Python erfährt nicht, ob ein Befehl angekommen ist oder in Unity ein Fehler auftrat. Bei laufendem Unity reicht das Unity-Log zur Fehlersuche.
+| Rückkanal (siehe oben).
+
+| **Protokollversion `v` wird nicht geprüft**
+| Eine spätere inkompatible Protokolländerung würde nicht erkannt.
+| In beiden Bridges `v` einlesen und bei unbekannter Version warnen.
+
+| **Viele Debug-Logs in Unity**
+| `UnityUdpBridge` schreibt für jeden Befehl mehrere `Debug.Log`-Einträge. Bei sehr häufigen Bewegungsbefehlen kostet das Leistung.
+| Logs nur im Editor oder per Schalter aktivieren.
+|===

@@ -1,15 +1,35 @@
 @startuml
 !include style.puml
 
-class MyPalletizerController {
-    - mode: str
-    - mc: Optional[MyPalletizer260]
-    - sock: Optional[socket]
-    - udp_ip: str
-    - udp_port: int
-    - _sim_angles: list[float]
-    - _JOINT_LIMITS: dict
+class Robot {
+    + config: RobotConfig
+    - _impl: MyPalletizerController
     __
+    + send_angles(j1, j2, j3, j4, speed=40)
+    + send_angle(id, degree, speed=40)
+    + sync_move_joints(j1, j2, j3, j4, speed=40)
+    + set_color(r, g, b)
+    + get_angles() : str
+    + set_end_effector(tool)
+    + set_gripper_state(flag, speed, _type_1)
+    + pump_on()
+    + pump_off()
+    + sleep(seconds)
+    + close()
+    __
+    - {static} _validate(cfg: RobotConfig)
+}
+
+class MyPalletizerController {
+    + mode: str
+    + mc: Optional[MyPalletizer260]
+    + sock: Optional[socket]
+    + udp_ip: str
+    + udp_port: int
+    - _sim_angles: list[float]
+    - {static} _JOINT_LIMITS: dict
+    __
+    + __init__(mode, port, ip, udp_port, baudrate=115200)
     + send_angles(j1, j2, j3, j4, speed=40)
     + send_angle(id, degree, speed=40)
     + sync_move_joints(j1, j2, j3, j4, speed=40)
@@ -24,19 +44,19 @@ class MyPalletizerController {
     __
     - _send_udp(payload: dict)
     - _clamp(joint: str, angle: float) : float
-    - _clamp_speed(speed: int) : int
-    - _clamp_rgb(r, g, b) : tuple
+    - {static} _clamp_speed(speed: int) : int
+    - {static} _clamp_rgb(r, g, b) : tuple
 }
 
 class MyPalletizer260 <<pymycobot>> {
     + power_on()
     + send_angles(angles, speed)
+    + send_angle(id, degree, speed)
     + sync_send_angles(angles, speed)
     + set_color(r, g, b)
     + get_angles() : list
     + set_gripper_state(flag, speed, _type_1)
     + set_basic_output(pin, state)
-    + close()
 }
 
 class protocol <<module>> {
@@ -48,7 +68,13 @@ class protocol <<module>> {
     + build_pump_msg(...) : dict
 }
 
-MyPalletizerController "1" o-- "0..1" MyPalletizer260 : Hardwaretreiber
-MyPalletizerController --> protocol : Message Builder
+Robot "1" *-- "1" MyPalletizerController : _impl
+MyPalletizerController "1" *-- "0..1" MyPalletizer260 : mc
+MyPalletizerController ..> protocol : <<use>>
+
+note right of MyPalletizer260
+mc ist nur in den Modi 'real' und 'both' gesetzt,
+sonst None.
+end note
 
 @enduml

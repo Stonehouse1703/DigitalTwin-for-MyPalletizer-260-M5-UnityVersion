@@ -9,51 +9,56 @@ participant "Robot" as Robot
 participant "MyPalletizerController" as MPC
 participant "protocol" as Proto
 participant "pymycobot" as PMC
-participant "Unity Simulation" as Unity
 participant "UnityUdpBridge\n(Port 5005)" as UUB
+participant "Unity Engine\n(Hauptthread)" as Engine
 participant "MyPalletizerArticulationAdapter" as Adapter
+participant "ArticulationJointActuator\n(J1..J4)" as Act
+participant "ArticulationBody" as AB
 
-User -> Robot : send_angles(j1, j2, j3, j4, speed=40)
-activate Robot
+User -> Robot ++ : send_angles(j1, j2, j3, j4, speed=40)
+Robot -> MPC ++ : send_angles(j1, j2, j3, j4, speed=40)
 
-Robot -> MPC : send_angles(j1, j2, j3, j4, speed=40)
-activate MPC
-
-MPC -> MPC : _clamp() Limits j1..j4 & speed
+MPC -> MPC : _clamp() je Gelenk, _clamp_speed()
 MPC -> MPC : _sim_angles = [j1, j2, j3, j4]
 
-group Simulations-Pfad (Modus 'virtual' / 'both')
-    MPC -> Proto : build_move_msg(j1, j2, j3, j4, speed)
-    activate Proto
-    Proto --> MPC : JSON (type: "move_joints")
-    deactivate Proto
-    MPC -> Unity : UDP sendto (Port 5005)
-    activate Unity
-    Unity -> UUB : Empfange Datagramm (Background Thread)
-    activate UUB
-    UUB -> UUB : _commandQueue.Enqueue(cmd)
-    deactivate UUB
+opt Modus 'virtual' oder 'both'
+    MPC -> Proto ++ : build_move_msg(j1, j2, j3, j4, speed)
+    Proto --> MPC -- : dict (type: "move_joints")
+    MPC ->> UUB : UDP sendto 127.0.0.1:5005 (JSON)
+    note right of UUB
+    Empfang im Hintergrund-Thread:
+    Receive() -> JSON lesen ->
+    _commandQueue.Enqueue(cmd)
+    (unter lock)
+    end note
 end
 
-group Hardware-Pfad (Modus 'real' / 'both')
-    MPC -> PMC : send_angles([j1, j2, j3, j4], speed)
+opt Modus 'real' oder 'both'
+    MPC -> PMC ++ : send_angles([j1, j2, j3, j4], speed)
+    PMC --> MPC -- : (kehrt sofort zurück)
 end
 
-MPC --> Robot : fertig
-deactivate MPC
-Robot --> User : Rückkehr (Nicht blockierend)
-deactivate Robot
+MPC --> Robot -- : fertig
+Robot --> User -- : Rückkehr (nicht blockierend)
 
-== Unity Hauptthread (Update-Zyklus) ==
-Unity -> UUB : CommandRunner()
-activate UUB
-UUB -> UUB : cmd = _commandQueue.Dequeue()
-UUB -> Adapter : MoveJointsAsync(j1, j2, j3, j4, speed)
-activate Adapter
-Adapter -> Adapter : Setze xDrive.target an Actuators J1..J4
-Adapter --> UUB : Bewegung läuft
-deactivate Adapter
-deactivate UUB
-deactivate Unity
+== Unity-Hauptthread (jedes Frame) ==
+
+Engine -> UUB ++ : CommandRunner() (Coroutine)
+UUB -> UUB : cmd = _commandQueue.Dequeue() (unter lock)
+UUB -> Adapter ++ : MoveJointsAsync(j1, j2, j3, j4, speed)
+loop für J1 .. J4
+    Adapter -> Act ++ : MoveToAsync(angle, speed)
+    Act -> Act : Stop(), StartCoroutine(MoveTo)
+    Act --> Adapter -- : (kehrt sofort zurück)
+end
+Adapter --> UUB -- : Bewegung läuft
+UUB --> Engine -- : nächstes Frame
+
+== Jeder FixedUpdate-Schritt, bis Zielwinkel erreicht ==
+
+loop solange |Ziel - aktueller Winkel| > 0.2°
+    Act -> AB : xDrive.target = MoveTowards(aktuell, Ziel, degPerSec * fixedDeltaTime)
+end
+Act -> AB : xDrive.target = Zielwinkel (Final Snap)
 
 @enduml

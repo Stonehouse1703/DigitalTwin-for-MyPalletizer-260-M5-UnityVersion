@@ -13,8 +13,8 @@ image::06_runtime_init.png[align=center, width=70%]
 
 . **Instanziierung `Robot`:** Der Benutzer instanziiert `Robot(mode=RobotMode.BOTH, port="/dev/ttyUSB0")`.
 . **Validierung:** `_validate()` stellt sicher, dass für die Modi `real` und `both` ein serieller Port definiert ist.
-. **Hardware-Initialisierung:** `MyPalletizerController` öffnet die serielle Verbindung via `pymycobot` (115200 Baud) und bestromt die Servomotoren mit `power_on()`.
-. **Netzwerk-Socket:** Der Controller öffnet einen UDP-Socket für die Robotersteuerung auf Port `5005`.
+. **Hardware-Initialisierung:** `MyPalletizerController` öffnet die serielle Verbindung via `pymycobot` (115200 Baud) und schaltet die Servomotoren mit `power_on()` ein. Dabei wartet der Konstruktor insgesamt rund 2.5 Sekunden, bis der Roboter bereit ist.
+. **Netzwerk-Socket:** Der Controller erzeugt einen UDP-Socket, der später an Port `5005` sendet. UDP baut keine Verbindung auf. Python prüft deshalb nicht, ob Unity überhaupt läuft.
 . **Welt-Initialisierung:** Der Benutzer instanziiert `World` separat. Diese Instanz öffnet den UDP-Socket auf Port `5006` für Szenenbefehle.
 
 === Szenario 2: Asynchrone Gelenkbewegung (`send_angles`)
@@ -36,7 +36,7 @@ image::06_runtime_sync_move.png[align=center, width=80%]
 
 . **API-Aufruf:** Der Benutzer ruft `sync_move_joints()` auf.
 . **Hardware-Synchronisation:** Der Controller ruft `sync_send_angles()` auf `pymycobot` auf. Diese Methode blockiert den Python-Thread, bis die physischen Servos die Zielposition erreicht haben.
-. **Simulation:** Die `UnityUdpBridge` empfängt den Befehl und wartet in Unity mit `MoveJointsSync(...)`, bis die vier Gelenke innerhalb der Toleranz liegen. Python erhält darüber keine Rückmeldung und wartet nicht auf Unity.
+. **Simulation:** Die `UnityUdpBridge` empfängt den Befehl und wartet in Unity mit `MoveJointsSync(...)`, bis die vier Gelenke innerhalb der Toleranz liegen. Python erhält darüber keine Rückmeldung und wartet nicht auf Unity. Wichtig: Während Unity auf `MoveJointsSync` wartet, bleibt die Roboter-Queue blockiert. Alle weiteren Roboterbefehle (auch `led` oder `pump`) werden erst danach abgearbeitet. Die Weltbefehle auf Port `5006` sind davon nicht betroffen.
 
 === Szenario 4: Dynamisches Objektspawnen (`World.spawn`)
 
@@ -54,7 +54,7 @@ Dieses Szenario zeigt die Aktivierung der Vakuumpumpe und das physikalische Ansa
 
 image::06_runtime_pump.png[align=center, width=80%]
 
-. **API-Aufruf:** Der Benutzer ruft `robot.pump_on()` auf.
+. **API-Aufruf:** Der Benutzer ruft `robot.pump_on()` auf. Voraussetzung: In der Simulation muss vorher `robot.set_end_effector("pump")` aufgerufen worden sein. Ist noch der Greifer aktiv (Standard), ignoriert Unity den Pumpenbefehl und schreibt nur eine Warnung ins Log.
 . **Hardware-Aktivierung:** Der Controller schaltet die GPIO-Pins 2 und 5 über `pymycobot.set_basic_output()` auf Low (`0`), wodurch die physischen Pumpenrelais anziehen.
 . **Simulations-Aktivierung:** Ein UDP-Paket (`type: "pump"`, `enabled: true`) wird an Port `5005` gesendet.
 . **Greiflogik in Unity:** Der `SuctionPumpController` aktiviert die optische Rückmeldung und sucht mittels `Physics.OverlapSphere` nach Objekten mit der Komponente `GrabbableObject`. Wird ein Objekt gefunden, wird es über `obj.AttachTo(attachPoint)` kinematisch an den Saugkopf gekoppelt.

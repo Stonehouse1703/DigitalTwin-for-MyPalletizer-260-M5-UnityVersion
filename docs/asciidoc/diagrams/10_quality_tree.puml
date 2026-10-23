@@ -1,24 +1,24 @@
 @startmindmap
 !include style.puml
 
-* Qualitätsziele (ISO 25010)
-** Interoperabilität & Portabilität
-*** Einheitliche API (Robot / World)
-*** Gleicher Code für Sim & Real
-*** Plattformunabhängig (Win / Linux / Mac)
-** Performanz & Zeitverhalten
-*** Latenzarme UDP-Kommunikation (< 50 ms)
-*** Flüssige 3D-Darstellung (>= 60 FPS)
+* Qualität (ISO/IEC 25010)
+** Kompatibilität\n(Austauschbarkeit)
+*** Einheitliche API Robot / World
+** Funktionale Eignung
+*** Sim und Real verhalten sich plausibel gleich (QS-7)
+** Performanz
+*** Bewegung beginnt < 50 ms (QS-1, Zielwert)
 *** Entkopplung über Warteschlangen
-** Zuverlässigkeit & Robustheit
-*** Software-Clamping für Gelenke & Speed
-*** Fail-Fast Parameterprüfung
-*** Toleranz bei UDP-Paketverlust
-** Wartbarkeit & Modularität
-*** Getrennte Robot- & World-Logik
-*** Porttrennung (5005 & 5006)
-*** Gekapselte Treiber (pymycobot)
-** Sicherheit
-*** Schutz vor mechanischen Kollisionen
-*** Begrenzung auf physikalische Limits
+** Zuverlässigkeit
+*** Robust bei fehlendem Unity (QS-3)
+*** Toleranz bei UDP-Paketverlust (QS-8)
+** Wartbarkeit
+*** Getrennte Robot- und World-Logik (QS-6)
+*** Reproduzierbare Presets (QS-10)
+** Portabilität
+*** Windows / Linux / macOS (QS-2)
+** Sicherheit\n(Safety)
+*** Winkel- und Wertebegrenzung (QS-4, QS-9)
+** Benutzbarkeit
+*** Erste Bewegung in < 15 Minuten (QS-5, Zielwert)
 @endmindmap

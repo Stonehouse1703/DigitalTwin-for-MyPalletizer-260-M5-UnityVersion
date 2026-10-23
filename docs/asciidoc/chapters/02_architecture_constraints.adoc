@@ -48,4 +48,4 @@ Die folgenden Vorgaben bilden den Rahmen für die Architektur des digitalen Zwil
 * Unity ist für die Simulation zuständig. Python erhält von Unity derzeit keine Quittung und keine simulierten Ist-Werte.
 * Der Modus `virtual` funktioniert ohne Hardware, aber nur dann als Simulation, wenn Unity läuft und die UDP-Nachrichten empfängt.
 * Die Simulation ersetzt keine exakte Kollisions- oder Kamerasimulation. Das Greifen wird über eine vereinfachte Kopplung modelliert.
-* Standardmässig werden die Ports `5005` für Roboterbefehle und `5006` für Weltbefehle verwendet. Die Implementierung bietet dafür derzeit keine vollständige Laufzeitkonfiguration in Unity.
+* Standardmässig werden die Ports `5005` für Roboterbefehle und `5006` für Weltbefehle verwendet. Auf der Python-Seite lassen sich `ip` und `udp_port` beim Erzeugen von `Robot` und `World` ändern. In Unity sind die Ports nur als öffentliche Felder `port` im Inspector einstellbar (`UnityUdpBridge`, `WorldUdpBridge`). Wer einen Port ändert, muss ihn also an beiden Stellen anpassen.

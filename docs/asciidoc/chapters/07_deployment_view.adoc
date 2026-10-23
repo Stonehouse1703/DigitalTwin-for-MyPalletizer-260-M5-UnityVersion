@@ -11,50 +11,6 @@ Das System wird auf einem lokalen Arbeitsplatzrechner (*Host-PC*) ausgeführt. O
 
 image::07_deployment.png[align=center, width=80%]
 
-=== Knoten und Softwareartefakte
-
-[cols="1,1,3", options="header"]
-|===
-| Knoten / Laufzeit | Typ | Enthaltene Komponenten und Voraussetzungen
-
-| **Host-PC**
-| Physischer Rechner
-| Standard-Entwicklungsrechner unter Windows (10/11), Linux (Ubuntu 22.04+) oder macOS (12+).
-
-| **Python Runtime**
-| Software-Umgebung (>= 3.10)
-| Führt das Benutzerskript, das installierte Paket `mypalletizer-api` sowie die Abhängigkeiten `numpy` und `pymycobot` aus.
-
-| **Unity Runtime**
-| Standalone-Build / Unity Editor
-| Führt die kompilierte Simulationsanwendung aus; nutzt OpenGL/DirectX/Metal für das Rendering und PhysX für die Gelenkberechnung.
-
-| **MyPalletizer 260 M5**
-| Embedded Hardware (ESP32)
-| M5Stack-Controller mit integrierter Echtzeit-Servosteuerung und Relaisausgängen für Endeffektoren.
-|===
-
-=== Kommunikationskanäle
-
-[cols="1,1,1,3", options="header"]
-|===
-| Kanal | Verbindung | Format / Baudrate | Zweck
-
-| **Roboterkanal**
-| UDP (`127.0.0.1:5005`)
-| UTF-8 JSON
-| Zeitkritische Übertragung von Gelenkwinkeln, LED-Farben und Werkzeugzuständen.
-
-| **Weltkanal**
-| UDP (`127.0.0.1:5006`)
-| UTF-8 JSON
-| Übertragung von Szenenkommandos (`spawn`, `delete`, `clear`).
-
-| **Hardware-Kanal**
-| USB-UART (Seriell)
-| 8N1, `115200` Baud
-| Bidirektionale Ansteuerung der physischen Servomotoren und Relais über `pymycobot`.
-|===
 
 === Bereitstellungsvarianten
 

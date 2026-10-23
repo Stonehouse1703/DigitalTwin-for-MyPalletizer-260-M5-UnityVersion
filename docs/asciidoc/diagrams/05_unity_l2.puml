@@ -1,6 +1,8 @@
 @startuml
 !include style.puml
-left to right direction
+skinparam linetype polyline
+skinparam nodesep 50
+skinparam ranksep 90
 
 package "Unity Simulation Layer" {
     package "Robot Subsystem (Port 5005)" {
@@ -17,25 +19,34 @@ package "Unity Simulation Layer" {
     package "World Subsystem (Port 5006)" {
         component "WorldUdpBridge\n(Port 5006 Receiver)" as WUB
         component "WorldSpawnManager" as WSM
-        component "GrabbableObject\n(nur dynamisch)" as GO
+        component "GrabbableObject\n(nur dynamische Objekte)" as GO
+    }
+
+    package "UI" {
+        component "CameraViewManager" as Camera
     }
 }
 
-UUB --> Adapter : Bewegung
-UUB --> ToolManager : Werkzeug
-UUB --> LED : led
+UUB ..> Adapter : move_joints
+UUB ..> ToolManager : Werkzeugbefehle
+UUB ..> LED : led
 
-Adapter *-- "4" Actuators
-DownConstraint ..> Actuators
+Adapter ..> Actuators : steuert (4x)
 
-ToolManager --> Gripper : Greifen
-ToolManager --> Pump : Saugen
+ToolManager ..> Gripper : Greifen
+ToolManager ..> Pump : Saugen
 
-WUB --> WSM
-WSM ..> GO
+WUB ..> WSM : spawn, delete, clear
 
-Gripper ..> GO
-Pump ..> GO
+WSM ..> GO : fügt hinzu (AddComponent)
+Gripper ..> GO : AttachTo / Detach
+Pump ..> GO : AttachTo / Detach
 
+note right of DownConstraint
+Keine Abhängigkeit zu anderen Bausteinen:
+liest nur die Ausrichtung des Eltern-Objekts
+(Arm) und hält den Werkzeugkopf damit
+senkrecht nach unten.
+end note
 
 @enduml

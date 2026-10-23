@@ -8,55 +8,55 @@ actor "Benutzer" as User
 participant "Robot" as Robot
 participant "MyPalletizerController" as MPC
 participant "pymycobot" as PMC
-participant "Unity Simulation" as Unity
-participant "UnityUdpBridge" as UUB
+participant "UnityUdpBridge\n(Port 5005)" as UUB
+participant "Unity Engine\n(Hauptthread)" as Engine
 participant "MyPalletizerArticulationAdapter" as Adapter
+participant "ArticulationJointActuator\n(J1..J4)" as Act
 
-User -> Robot : sync_move_joints(...)
-activate Robot
+User -> Robot ++ : sync_move_joints(j1, j2, j3, j4, speed)
+Robot -> MPC ++ : sync_move_joints(j1, j2, j3, j4, speed)
 
-Robot -> MPC : sync_move_joints(...)
-activate MPC
+MPC -> MPC : _clamp() je Gelenk, _clamp_speed()
+MPC -> MPC : _sim_angles = [j1, j2, j3, j4]
 
-MPC -> MPC : _clamp() & _sim_angles aktualisieren
-
-group Simulations-Pfad (UDP Port 5005)
-    MPC -> Unity : UDP: sync_move_joints
-    activate Unity
-    Unity -> UUB : _commandQueue.Enqueue(cmd)
+opt Modus 'virtual' oder 'both'
+    MPC ->> UUB : UDP sendto 127.0.0.1:5005\n(type: "sync_move_joints")
+    note right of UUB
+    Hintergrund-Thread:
+    _commandQueue.Enqueue(cmd)
+    end note
 end
 
-group Hardware-Pfad (Serial)
-    MPC -> PMC : sync_send_angles(...)
-    activate PMC
-    note right of MPC : Python wartet nur\nauf die Hardware.
-    PMC --> MPC : Hardware-Position erreicht
-    deactivate PMC
+opt Modus 'real' oder 'both'
+    MPC -> PMC ++ : sync_send_angles([j1, j2, j3, j4], speed)
+    note right of PMC : Python wartet nur\nauf die Hardware.
+    PMC --> MPC -- : Zielposition erreicht
 end
 
-MPC --> Robot : Hardware fertig
-deactivate MPC
-Robot --> User : Rückkehr (Hardware steht am Ziel)
-deactivate Robot
+MPC --> Robot -- : fertig
+Robot --> User -- : Rückkehr
 
-== Unabhängige Verarbeitung in Unity ==
-Unity -> UUB : CommandRunner()
-activate UUB
+== Unabhängig davon in Unity (Hauptthread) ==
+
+Engine -> UUB ++ : CommandRunner() (Coroutine)
 UUB -> UUB : cmd = _commandQueue.Dequeue()
-UUB -> Adapter : MoveJointsSync(...)
-activate Adapter
-loop Bis alle Gelenke innerhalb epsDeg (0.5°)
-    Adapter -> Adapter : WaitForFixedUpdate()
+UUB -> Adapter ++ : MoveJointsSync(j1, j2, j3, j4, speed)
+Adapter -> Adapter : MoveJointsAsync(...)
+Adapter -> Act : MoveToAsync(angle, speed) für J1..J4
+loop bis IsAtTarget(Ziel, epsDeg = 0.5) für alle vier Gelenke
+    Adapter -> Adapter : yield return WaitForFixedUpdate()
 end
-Adapter --> UUB : Alle Achsen am Ziel
-deactivate Adapter
-UUB --> Unity : Nächster Queue-Befehl freigegeben
-deactivate UUB
-deactivate Unity
+Adapter --> UUB -- : alle Gelenke am Ziel
+note over UUB
+Solange MoveJointsSync wartet, bleibt die
+Roboter-Queue blockiert: Folgebefehle (led,
+pump, weitere Bewegungen) warten.
+end note
+UUB --> Engine -- : nächster Queue-Befehl
 
-note right of Unity
-Python erhält keine Quittung
-von Unity.
+note over Robot, Engine
+Python erhält keine Quittung von Unity
+und wartet nicht auf die Simulation.
 end note
 
 @enduml
