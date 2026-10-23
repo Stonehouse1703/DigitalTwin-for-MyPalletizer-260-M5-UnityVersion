@@ -3,27 +3,46 @@ ifndef::imagesdir[:imagesdir: ../images]
 [[section-solution-strategy]]
 == Solution Strategy
 
-Die Lösungsstrategie fasst die grundlegenden architektonischen Entwurfsentscheidungen zusammen, mit denen die funktionalen Anforderungen und Qualitätsziele realisiert werden.
+Die Lösungsstrategie fasst die grundlegenden architektonischen Entwurfsentscheidungen zusammen, mit denen die Qualitätsziele aus Kapitel 1 erreicht werden. Detaillierte Bausteine, übergreifende Mechanismen und begründete Architekturentscheidungen werden in den Folgekapiteln vertieft.
 
-=== Architekturelle Leitprinzipien
+=== Zuordnung der Qualitätsziele zu Lösungsansätzen
 
-* **Schichtenarchitektur und Entkopplung (*Separation of Concerns*):**
-  Die Aufgaben sind auf zwei Schichten verteilt:
-  - **Python Control Layer:** Benutzerschnittstelle, Eingabevalidierung, Software-Clamping und Weiterleitung an Hardware und Unity.
-  - **Unity Simulation Layer:** UDP-Empfang, Befehlswarteschlange, Kinematik, Physik und Werkzeuglogik.
-  Diese Trennung ermöglicht Python-Unit-Tests ohne laufende 3D-Engine.
+[cols="1,2,2,1", options="header"]
+|===
+| Qualitätsziel (Kap. 1.2) | Architektonische Herausforderung | Gewählter Lösungsansatz | Details
 
-* **Fassade und Adapter:**
-  `Robot` und `World` bilden die öffentliche Fassade. Die Hardwarebibliothek `pymycobot` und die UDP-Sockets bleiben im Controller verborgen.
+| **1. Austauschbarkeit**
+| Steuerungsskripte sollen identisch für Simulation und Hardware funktionieren.
+| Einheitliche Fassade (`Robot`), modusspezifisches Routing (`virtual`, `real`, `both`) im Controller verborgen.
+| Kap. 5, ADR-1, ADR-3
 
-* **UDP mit absoluten Zielwerten:**
-  UDP reduziert den Aufwand für häufige Bewegungsbefehle. Ein Bewegungs-Datagramm enthält alle vier Zielwinkel (`j1` bis `j4`). Ein Paketverlust wird dadurch bei einer folgenden Bewegung oft korrigiert; für einzelne Befehle gibt es derzeit keine Quittierung oder Wiederholung.
+| **2. Zeitverhalten & Latenz**
+| Flüssige 3D-Visualisierung ohne Blockieren des Benutzerskripts.
+| Verbindungsloses UDP für Bewegungsdaten; Entkopplung von Empfang und Rendering über interne Unity-Queues.
+| Kap. 8, ADR-4
 
-* **Kanal- und Porttrennung zur Latenzoptimierung:**
-  Um zu verhindern, dass umfangreiche Weltbefehle (z. B. das Erzeugen komplexer Szenarien) zeitkritische Roboterbewegungen blockieren, sind die Kommunikationswege auf zwei separate Ports aufgeteilt:
-  - **Port `5005` (Roboterkanal):** Gelenkbewegungen, LED-Farben und Werkzeugbefehle.
-  - **Port `5006` (Weltkanal):** Objekt- und Szenenbefehle (`spawn`, `delete`, `clear`).
+| **3. Zuverlässigkeit**
+| Schutz vor Hardwarebeschädigung und fehlerhaften Benutzereingaben.
+| Zweistufiges Schutzkonzept: Frühes Abfangen struktureller Fehler (Fail-Fast) und automatisches Begrenzen numerischer Werte (Clamping).
+| Kap. 8
 
-* **Mehrstufiges Schutz- und Validierungskonzept:**
-  **Fail-Fast:** `Robot` prüft die Konfiguration und `World` prüft Weltobjekte vor dem Versand.
-  **Software-Clamping:** Gelenkwinkel, Geschwindigkeiten und LED-Farbwerte werden vor der Übertragung begrenzt.
+| **4. Wartbarkeit & Modularität**
+| Unabhängige Erweiterbarkeit von Robotersteuerung und Simulationsszene.
+| Strikte Schichtentrennung (Python vs. Unity) sowie getrennte Kommunikationskanäle (Port 5005 und 5006).
+| Kap. 3, Kap. 5, ADR-4
+
+| **5. Portabilität**
+| Plattformunabhängige Ausführung unter Windows, Linux und macOS.
+| Standard-Python ohne OS-spezifische Erweiterungen; plattformunabhängige Unity-Standalone-Builds.
+| Kap. 2, Kap. 7
+|===
+
+=== Fundamentale Architekturentscheidungen
+
+Die wesentlichen Entwurfsentscheidungen sind in Kapitel 9 als Architectural Decision Records (ADR) dokumentiert:
+
+* **Einheitliche Fassade:** Kapselung von `pymycobot` und Netzwerk-Sockets hinter `Robot` und `World` (-> ADR-1, ADR-2).
+* **Parallele Kommunikationskanäle:** Port 5005 für hochfrequente Roboterkommandos, Port 5006 für Szenenverwaltung (-> ADR-4).
+* **Gelenkphysik mit ArticulationBody:** Stabile physikalische Mehrkörpersimulation ohne numerische Gelenkdehnung (-> ADR-6).
+* **Kinematische Werkzeugkopplung:** Pragmatische Objektanbindung (`AttachTo`) statt aufwendiger Reibungssimulation (-> ADR-7).
+* **Fokus auf Kernkinematik:** Verzicht auf rechenintensive virtuelle Bildverarbeitung in Unity (-> ADR-8).

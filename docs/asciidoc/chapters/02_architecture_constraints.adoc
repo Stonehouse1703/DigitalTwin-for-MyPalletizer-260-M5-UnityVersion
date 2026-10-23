@@ -22,7 +22,6 @@ Die folgenden Vorgaben bilden den Rahmen für die Architektur des digitalen Zwil
 
 | **Plattformunabhängigkeit**
 | Sowohl das Python-Paket als auch die kompilierte Unity-Simulation müssen ohne systemspezifische Anpassungen auf Windows, Linux und macOS lauffähig sein.
-
 |===
 
 === Organisatorische Randbedingungen
@@ -33,7 +32,6 @@ Die folgenden Vorgaben bilden den Rahmen für die Architektur des digitalen Zwil
 
 | **Hochschul- und Semesterrahmen**
 | Das Projekt wurde als Einzelprojektarbeit im Modul AI-Robotics an der Hochschule Luzern innerhalb eines Semesters umgesetzt.
-
 |===
 
 === Konventionen und Standards
@@ -45,7 +43,8 @@ Die folgenden Vorgaben bilden den Rahmen für die Architektur des digitalen Zwil
 
 === Bewusste Grenzen und Annahmen
 
-* Unity ist für die Simulation zuständig. Python erhält von Unity derzeit keine Quittung und keine simulierten Ist-Werte.
-* Der Modus `virtual` funktioniert ohne Hardware, aber nur dann als Simulation, wenn Unity läuft und die UDP-Nachrichten empfängt.
-* Die Simulation ersetzt keine exakte Kollisions- oder Kamerasimulation. Das Greifen wird über eine vereinfachte Kopplung modelliert.
-* Standardmässig werden die Ports `5005` für Roboterbefehle und `5006` für Weltbefehle verwendet. Auf der Python-Seite lassen sich `ip` und `udp_port` beim Erzeugen von `Robot` und `World` ändern. In Unity sind die Ports nur als öffentliche Felder `port` im Inspector einstellbar (`UnityUdpBridge`, `WorldUdpBridge`). Wer einen Port ändert, muss ihn also an beiden Stellen anpassen.
+Zur Wahrung des Projektumfangs wurden bewusste Systemgrenzen definiert:
+
+* **Open-Loop-Simulation:** Python sendet Befehle an Unity ohne Rückmeldung oder simulierte Sensorik (Details siehe ADR-1 und Kapitel 11).
+* **Vereinfachte Interaktionsphysik:** Werkzeuge koppeln Objekte kinematisch (`AttachTo`); auf komplexe Reibungskräfte und virtuelle Kameras wird verzichtet (siehe ADR-7 und ADR-8).
+* **Feste Portzuordnung:** Die Kommunikation nutzt standardmässig die Ports `5005` (Roboter) und `5006` (Welt). Portänderungen müssen in Python und im Unity-Inspector synchron gepflegt werden (siehe Kapitel 3 und 11).

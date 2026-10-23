@@ -3,84 +3,72 @@ ifndef::imagesdir[:imagesdir: ../images]
 [[section-technical-risks]]
 == Risks and Technical Debts
 
-Dieses Kapitel dokumentiert bekannte architektonische und technologische Risiken, technische Schulden sowie Massnahmen zu deren Beherrschung.
+Dieses Kapitel dokumentiert bekannte architektonische und technologische Risiken sowie bestehende technische Schulden und Code-Einschränkungen mit Massnahmen zu deren Beherrschung.
 
-=== Architektur-Risiken
+=== Architektur- und Technologierisiken
 
 [cols="1,2,2", options="header"]
 |===
 | Risiko | Ursache und Auswirkung | Massnahme zur Risikominderung
 
 | **Paketverlust bei UDP-Kommunikation**
-| UDP garantiert weder Zustellung noch Reihenfolge.
-| Bewegungsdatagramme enthalten den vollständigen absoluten Zustand (`j1` bis `j4`). Ein späteres Bewegungsdatagramm kann die Pose korrigieren; einzelne Befehle bleiben ohne Quittierung.
-
-| **Open-Loop-Steuerung der Simulation**
-| Die Python-API sendet Befehle an Unity, ohne eine physikalische Quittung abzuwarten.
-| Für den Lehrkontext ist das ausreichend. Der lokale Zustandsspeicher `_sim_angles` stellt sicher, dass `get_angles()` unmittelbar konsistente Werte liefert.
+| UDP garantiert weder Zustellung noch Reihenfolge. Einzelne verlorene Pakete könnten zu Fehlstellungen führen.
+| Idempotentes Protokolldesign: Jedes Bewegungsdatagramm enthält den vollständigen Zustand (`j1` bis `j4`). Nachfolgende Befehle korrigieren Posenabweichungen automatisch.
 
 | **Laufzeit-Asynchronität im Modus `both`**
-| Unity-Physik und reale Servomotoren haben leicht unterschiedliche Trägheitsmomente und Ansprechzeiten.
-| Beide Zielsysteme erhalten identische Zielwinkel und Geschwindigkeitsstufen. Python wartet bei `sync_move_joints` nur auf die Hardware; Unity verarbeitet den Befehl unabhängig in seiner Queue.
-
-| **Port-Kollisionen**
-| Standard-UDP-Ports `5005` und `5006` könnten belegt sein.
-| Die Standardports sind in Python und Unity auf `5005` und `5006` ausgelegt. In Python lassen sie sich über `udp_port` ändern, in Unity nur über den Inspector. Eine gemeinsame Konfiguration gibt es nicht, beide Seiten müssen von Hand zusammenpassen.
-|===
-
-=== Technologische und Implementierungsrisiken
-
-[cols="1,2,2", options="header"]
-|===
-| Risiko | Ursache und Auswirkung | Massnahme zur Risikominderung
-
-| **Abhängigkeit von `pymycobot`**
-| Fehler in der Herstellerbibliothek könnten die Hardwareansteuerung beeinträchtigen.
-| Kapselung von `pymycobot` im `MyPalletizerController`. Bei Bedarf kann die Implementierung gegen eine eigene serielle Treiberschicht ausgetauscht werden.
+| Unity-Physik und reale Servomotoren weisen unterschiedliche Ansprechzeiten und Geschwindigkeiten auf.
+| Beide Zielsysteme erhalten identische Sollwinkel. Python synchronisiert bei `sync_move_joints` auf die Hardware, während Unity den Befehl parallel in seiner Queue verarbeitet.
 
 | **Thread-Sicherheit in Unity**
-| Fehlerhafte Zugriffe aus dem Netzwerk-Thread auf Unity-Objekte führen zu Engine-Crashes.
-| Strikte Trennung über threadsichere Sperren (`lock`) und Queues (`_commandQueue`), die ausschliesslich im Unity-Hauptthread (`CommandRunner`) abgearbeitet werden.
+| Fehlerhafte Zugriffe aus dem Netzwerkempfangs-Thread auf Unity-Objekte führen zu Abstürzen der Engine.
+| Strikte Entkopplung über threadsichere Queues mit Sperren (`lock`). Die Befehlsabarbeitung erfolgt ausschliesslich im Unity-Hauptthread (`CommandRunner`).
+
+| **Abhängigkeit von `pymycobot`**
+| Änderungen oder Fehler in der Herstellerbibliothek könnten die Hardwareansteuerung beeinträchtigen.
+| Kapselung von `pymycobot` im `MyPalletizerController`. Bei Schnittstellenänderungen muss nur dieser Adapter angepasst werden.
 |===
 
-=== Technische Schulden und Weiterentwicklung
+=== Bekannte Einschränkungen und technische Schulden
 
-* **Automatisierung von End-to-End-Systemtests:**
-  Unit-Tests in Python und EditMode-Tests in Unity sind automatisiert. Systemtests (Zusammenspiel über UDP) werden derzeit manuell nach Wiki-Testprotokoll durchgeführt. Langfristig ist ein Headless-Unity-Testrunner in GitHub Actions geplant.
-* **Vereinfachtes Greifermodell:**
-  Werkzeuge nutzen ein kinematisches Kopplungsmodell (`AttachTo`), anstatt komplexe Reibungskräfte physikalisch zu berechnen. Für Lehrzwecke ist dies stabil und performant; ein Reibungsmodell kann bei Bedarf modular nachgerüstet werden.
-* **Bidirektionaler Telemetrie-Rückkanal:**
-  Unity sendet derzeit keine Messwerte an Python zurück; `get_angles()` basiert in der Simulation auf `_sim_angles`. Eine spätere Erweiterung um einen Rückkanal (z. B. auf Port `5007`) ist architektonisch vorbereitet.
-
-=== Bekannte Einschränkungen im Code
-
-Diese Punkte sind keine Annahmen, sondern aus dem Quellcode abgeleitet. Sie sind wichtig, wenn man Skripte schreibt oder den Code erweitert.
+Die folgende Übersicht fasst die identifizierten Einschränkungen im Quellcode und die dokumentierten technischen Schulden zusammen.
 
 [cols="1,2,2", options="header"]
 |===
-| Einschränkung | Auswirkung | Umgehung / Idee
+| Einschränkung / Technische Schuld | Auswirkung in der Praxis | Massnahme / Geplante Weiterentwicklung
+
+| **Open-Loop-Simulation (Fehlender Rückkanal)**
+| Python erhält keine Quittung und keine simulierten Ist-Werte von Unity. `get_angles()` liest den lokalen Speicher `_sim_angles`.
+| Für Ausbildungszwecke ausreichend; bei Fehlern bietet das Unity-Konsolenlog Diagnosehinweise. Langfristig ist ein Telemetrie-Rückkanal (z. B. auf Port `5007`) vorbereitet.
 
 | **`send_angle` bewegt die Simulation nicht**
-| Im Modus `virtual` kommt `NotImplementedError`. Im Modus `both` bewegt sich nur der echte Roboter, die Simulation steht still.
-| Für Skripte `send_angles` oder `sync_move_joints` mit allen vier Gelenken verwenden. Später könnte ein Protokolltyp für ein einzelnes Gelenk ergänzt werden.
+| Einzelgelenkbefehle lösen im Modus `virtual` einen `NotImplementedError` aus und bewegen im Modus `both` nur den realen Roboter.
+| In Skripten `send_angles` oder `sync_move_joints` mit allen vier Gelenken nutzen. Zukünftige Protokollerweiterung für Einzelachsen möglich.
 
-| **`sync_move_joints` blockiert die Unity-Roboter-Queue**
-| Folgende Befehle (LED, Werkzeug, Pumpe, weitere Bewegungen) warten, bis alle Gelenke im Toleranzbereich von 0.5° sind. Erreicht ein Gelenk den Zielwinkel nie (zum Beispiel weil der Zielwert ausserhalb der Gelenkgrenzen in Unity liegt), hängt die Queue.
-| Ein Timeout in `MoveJointsSync` ergänzen.
+| **Möglicher Deadlock bei `sync_move_joints` in Unity**
+| `MoveJointsSync` wartet, bis alle Achsen im Toleranzbereich (0.5°) liegen. Kann ein Gelenk das Ziel nicht erreichen, blockiert die Roboter-Befehlswarteschlange dauerhaft.
+| Einen konfigurierbaren Timeout in `MoveJointsSync` ergänzen, der die Ausführung bei Blockaden abbricht.
 
-| **Werkzeugbefehle hängen vom aktiven Werkzeug ab**
-| `pump_on()` oder `set_gripper_state()` werden in Unity ignoriert, wenn das andere Werkzeug aktiv ist (Standard: `gripper`).
-| Vorher `set_end_effector()` aufrufen. Ein Hinweis in der Python-API wäre hilfreich.
+| **Werkzeugauswahl als Vorbedingung**
+| Werkzeugbefehle (`pump_on`, `set_gripper_state`) werden von Unity ignoriert, wenn das jeweilige Werkzeug nicht zuvor per `set_end_effector` aktiviert wurde.
+| In Steuerungsskripten vor Werkzeugaktionen stets `set_end_effector` aufrufen. Eine Validierungsmeldung in der Python-API ist empfohlen.
 
-| **Keine Rückmeldung von Unity**
-| Python erfährt nicht, ob ein Befehl angekommen ist oder in Unity ein Fehler auftrat. Bei laufendem Unity reicht das Unity-Log zur Fehlersuche.
-| Rückkanal (siehe oben).
+| **Keine Validierung der Protokollversion `v`**
+| Das übertragene Feld `"v": 1` wird von den UDP-Bridges empfangen, derzeit jedoch nicht auf Kompatibilität ausgewertet.
+| Versionsprüfung in den Bridges nachrüsten, um inkompatible Protokollversionen mit einer Warnung abzufangen.
 
-| **Protokollversion `v` wird nicht geprüft**
-| Eine spätere inkompatible Protokolländerung würde nicht erkannt.
-| In beiden Bridges `v` einlesen und bei unbekannter Version warnen.
+| **Getrennte manuelle Port-Konfiguration**
+| Ports `5005` und `5006` sind in Python per Parameter anpassbar, in Unity jedoch nur im Editor-Inspector fest verdrahtet.
+| Ports bei Änderungen auf beiden Seiten synchron einstellen. Mittelfristig eine gemeinsame Konfigurationsdatei (z. B. JSON/YAML) anbinden.
 
-| **Viele Debug-Logs in Unity**
-| `UnityUdpBridge` schreibt für jeden Befehl mehrere `Debug.Log`-Einträge. Bei sehr häufigen Bewegungsbefehlen kostet das Leistung.
-| Logs nur im Editor oder per Schalter aktivieren.
+| **Vereinfachtes Greifermodell**
+| Werkzeuge nutzen kinematische Fixierung (`AttachTo`) anstelle physikalischer Reibungskraftberechnung.
+| Für Lehrzwecke stabil und deterministisch. Ein physikalisches Reibungsmodell kann bei Bedarf als modularer Werkzeugcontroller nachgerüstet werden.
+
+| **Fehlende automatisierte End-to-End-Tests**
+| Unit-Tests (Python) und EditMode-Tests (Unity) laufen automatisiert; die Netzwerk-Gesamtkette wird bisher manuell nach Protokoll getestet.
+| Einrichtung eines Headless-Unity-Testrunners in der GitHub-Actions-CI-Pipeline.
+
+| **Hohes Debug-Log-Aufkommen in Unity**
+| `UnityUdpBridge` schreibt für jedes empfangene Datagramm Log-Meldungen. Bei kontinuierlichen Bewegungen kann dies die Performance mindern.
+| Logging über Kompilierungsschalter oder Konfigurationsflags auf den Editor-Modus bzw. Fehlerfälle beschränken.
 |===
