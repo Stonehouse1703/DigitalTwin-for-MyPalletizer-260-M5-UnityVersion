@@ -47,4 +47,4 @@ Zur Wahrung des Projektumfangs wurden bewusste Systemgrenzen definiert:
 
 * **Open-Loop-Simulation:** Python sendet Befehle an Unity ohne Rückmeldung oder simulierte Sensorik (Details siehe ADR-1 und Kapitel 11).
 * **Vereinfachte Interaktionsphysik:** Werkzeuge koppeln Objekte kinematisch (`AttachTo`); auf komplexe Reibungskräfte und virtuelle Kameras wird verzichtet (siehe ADR-7 und ADR-8).
-* **Feste Portzuordnung:** Die Kommunikation nutzt standardmässig die Ports `5005` (Roboter) und `5006` (Welt). Portänderungen müssen in Python und im Unity-Inspector synchron gepflegt werden (siehe Kapitel 3 und 11).
+

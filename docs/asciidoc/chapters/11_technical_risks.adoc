@@ -13,7 +13,7 @@ Dieses Kapitel dokumentiert bekannte architektonische und technologische Risiken
 
 | **Paketverlust bei UDP-Kommunikation**
 | UDP garantiert weder Zustellung noch Reihenfolge. Einzelne verlorene Pakete könnten zu Fehlstellungen führen.
-| Idempotentes Protokolldesign: Jedes Bewegungsdatagramm enthält den vollständigen Zustand (`j1` bis `j4`). Nachfolgende Befehle korrigieren Posenabweichungen automatisch.
+| Idempotentes Protokolldesign: Nachfolgende Datagramme mit vollständigen absoluten Zielwerten korrigieren Posenabweichungen automatisch (Konzept siehe Kapitel 8.2).
 
 | **Laufzeit-Asynchronität im Modus `both`**
 | Unity-Physik und reale Servomotoren weisen unterschiedliche Ansprechzeiten und Geschwindigkeiten auf.

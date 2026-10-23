@@ -33,7 +33,7 @@ Dieses Szenario zeigt die Aktivierung eines Werkzeugs und das physikalische Grei
 
 image::06_runtime_pump.png[align=center, width=80%]
 
-. **API-Aufruf & Vorbedingung:** Der Benutzer ruft `robot.pump_on()` auf. Voraussetzung in Unity ist, dass zuvor `robot.set_end_effector("pump")` aufgerufen wurde; andernfalls ignoriert Unity den Pumpenbefehl mit einer Log-Warnung.
+. **API-Aufruf:** Der Benutzer ruft `robot.pump_on()` auf (Voraussetzung: in Unity zuvor aktiviertes Werkzeug `"pump"`, Details siehe Kapitel 11).
 . **Hardware-Aktivierung:** Der Controller schaltet die GPIO-Pins über `pymycobot.set_basic_output()` auf Low (`0`), wodurch die physischen Pumpenrelais anziehen.
 . **Simulations-Aktivierung:** Ein UDP-Paket (`type: "pump"`, `enabled: true`) wird an Port `5005` gesendet.
 . **Greiflogik in Unity:** Der `SuctionPumpController` schaltet die optische Rückmeldung ein und prüft mittels `Physics.OverlapSphere` den Bereich um den Saugkopf auf Objekte mit der Komponente `GrabbableObject`. Wird ein solches Objekt erfasst, wird es über `obj.AttachTo(attachPoint)` kinematisch an den Endeffektor gekoppelt.

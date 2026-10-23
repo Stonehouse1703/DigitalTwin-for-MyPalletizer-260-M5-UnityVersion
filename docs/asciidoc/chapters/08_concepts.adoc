@@ -12,7 +12,7 @@ Die Kinematik des Roboters wird in Unity realitätsnah und stabil nachgebildet.
 image::Joints.png[align=center, width=50%]
 
 * **Mehrkörper-Kinematik mit `ArticulationBody`:**
-  Die vier Drehachsen (`J1` bis `J4`) sind baumförmig angeordnet. Unitys `ArticulationBody` verhindert numerische Dehnungen und sorgt für ein physikalisch stabiles Verhalten der verbundenen Starrkörper (Begründung siehe ADR-6).
+  Die vier Drehachsen (`J1` bis `J4`) sind baumförmig angeordnet. Unitys `ArticulationBody` sorgt für ein physikalisch stabiles Mehrkörperverhalten der verbundenen Starrkörper (Begründung siehe ADR-6).
 * **Kontinuierliche Bewegungsglättung:**
   Um sprunghafte Posenänderungen zu vermeiden, führt der `ArticulationJointActuator` den Zielwert `xDrive.target` schrittweise pro Physikschritt (`FixedUpdate`) nach. Die Geschwindigkeit richtet sich nach dem übergebenen `speed`-Parameter. Ein neuer Befehl für dasselbe Gelenk bricht die laufende Interpolation ab (`Stop()`).
 * **Horizontale Werkzeugausrichtung:**

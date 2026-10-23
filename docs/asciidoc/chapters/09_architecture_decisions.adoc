@@ -61,7 +61,7 @@ Die folgenden Architectural Decision Records (ADRs) dokumentieren die zentralen 
 
 * **Status:** Akzeptiert
 * **Kontext:** In Übungen müssen reproduzierbare Ausgangssituationen für Pick-and-Place-Aufgaben schnell geladen werden können.
-* **Entscheidung:** Die vorhandenen Standardszenarien (`empty`, `three_blocks`, `Base1`, `sorting_task`) werden als Python-Presets definiert und über `World.load_preset()` bereitgestellt.
+* **Entscheidung:** Vordefinierte Standardszenarien werden als codebasierte Python-Presets implementiert und über `World.load_preset()` bereitgestellt (Katalog siehe Kapitel 5.2).
 * **Betrachtete Alternativen:**
   1. Manuelles Platzieren aller Objekte im Unity-Editor vor Programmstart.
   2. Laden ausschliesslich aus externen JSON-Dateien.

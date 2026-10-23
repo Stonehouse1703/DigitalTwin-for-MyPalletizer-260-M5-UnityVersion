@@ -85,7 +85,7 @@ image::05_unity_l2.png[align=center, width=85%]
 | Steuert den `ArticulationBody` eines einzelnen Gelenks über dessen `xDrive` und fährt das Gelenk mit einer Coroutine in kleinen Schritten zum Zielwinkel (ein Schritt pro `FixedUpdate`, Geschwindigkeit abhängig vom `speed`-Wert).
 
 | **`GripperDownConstraint`**
-| Hält den Werkzeugkopf im `LateUpdate` vertikal nach unten ausgerichtet (Kompensation der Palettiermechanik).
+| Softwareseitige Ausrichtungskompensation des Werkzeugkopfs (Details siehe Kapitel 8.1).
 
 | **`RobotToolManager`**
 | Schaltet die Sichtbarkeit der Endeffektor-Modelle (`gripperTool` / `pumpTool`) und leitet Aktionen an den aktiven Werkzeugcontroller weiter.
@@ -118,9 +118,9 @@ image::05_unity_l2.png[align=center, width=85%]
 
 image::05_controller_l3.png[align=center, width=75%]
 
-* **Gelenkwinkelbegrenzung (`_clamp`):** Schützt die Hardware durch hartcodierte Grenzwerte (`j1: -160..160°`, `j2: 0..90°`, `j3: -92..60°`, `j4: -360..360°`).
+* **Gelenkwinkelbegrenzung (`_clamp`):** Schützt die Hardware durch automatisches Begrenzen der Achsen auf die mechanischen Spezifikationen (Grenzwerte siehe Kapitel 2.1).
 * **Telemetrie-Simulation (`get_angles`):** Gibt im Modus `virtual` die Werte aus `_sim_angles` und im Modus `real`/`both` die von der Hardware gelesenen Gelenkdaten zurück.
-* **Einzelgelenk (`send_angle`):** Diese Methode schreibt nur an die Hardware. Im Modus `virtual` löst sie `NotImplementedError` aus, im Modus `both` bewegt sie nur den echten Roboter und nicht die Simulation (siehe Kapitel 11).
+* **Einzelgelenk (`send_angle`):** Steuert ausschliesslich die reale Hardware an (Einschränkungen und Details siehe Kapitel 11).
 * **Werkzeugwahl (`set_end_effector`):** Die Auswahl `gripper` oder `pump` geht nur an Unity. Der echte Roboter hat kein Gegenstück dazu, dort wird das Werkzeug mechanisch montiert.
 
 ==== `World` und `WorldObject` (Klassendiagramm)
