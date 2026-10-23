@@ -3,7 +3,7 @@ ifndef::imagesdir[:imagesdir: ../images]
 [[section-concepts]]
 == Cross-cutting Concepts
 
-In diesem Kapitel werden die übergreifenden Entwurfsmuster, Architekturkonzepte und Implementierungsprinzipien beschrieben, die mehrere Bausteine des Systems prägen.
+In diesem Kapitel werden die übergreifenden Entwurfsmuster, Architekturkonzepte und Implementierungsprinzipien beschrieben.
 
 === Simulations- und Kinematikkonzept
 
@@ -11,41 +11,72 @@ Die Kinematik des Roboters wird in Unity realitätsnah und stabil nachgebildet.
 
 image::Joints.png[align=center, width=50%]
 
-* **Mehrkörper-Kinematik mit `ArticulationBody`:**
-  Die vier Drehachsen (`J1` bis `J4`) sind baumförmig angeordnet. Unitys `ArticulationBody` sorgt für ein physikalisch stabiles Mehrkörperverhalten der verbundenen Starrkörper (Begründung siehe ADR-6).
-* **Kontinuierliche Bewegungsglättung:**
-  Um sprunghafte Posenänderungen zu vermeiden, führt der `ArticulationJointActuator` den Zielwert `xDrive.target` schrittweise pro Physikschritt (`FixedUpdate`) nach. Die Geschwindigkeit richtet sich nach dem übergebenen `speed`-Parameter. Ein neuer Befehl für dasselbe Gelenk bricht die laufende Interpolation ab (`Stop()`).
-* **Horizontale Werkzeugausrichtung:**
-  Reale Palettierroboter besitzen ein mechanisches Parallelogrammgestänge, welches das Werkzeug stets vertikal nach unten hält. In Unity wird dies im `LateUpdate`-Schritt über die Komponente `GripperDownConstraint` rechnerisch kompensiert (siehe ADR-7).
+* **Mehrkörper-Kinematik mit `ArticulationBody`:** Die vier Drehachsen (`J1` bis `J4`) sind baumförmig angeordnet. Unitys `ArticulationBody` garantiert ein stabiles Mehrkörperverhalten ohne numerische Gelenkdehnung (siehe ADR-6).
+* **Kontinuierliche Bewegungsglättung:** Der `ArticulationJointActuator` führt den Zielwert `xDrive.target` pro Physikschritt (`FixedUpdate`) geschwindigkeitsabhängig nach. Neue Zielbefehle stoppen laufende Interpolationen sofort (`Stop()`).
+* **Horizontale Werkzeugausrichtung:** Reale Palettierroboter halten das Werkzeug über ein Parallelogrammgestänge vertikal. In Unity kompensiert dies die Komponente `GripperDownConstraint` rechnerisch im `LateUpdate` (siehe ADR-7).
 
 === Szenen- und Objektlebenszyklus
 
-Die Simulationsumgebung erlaubt das dynamische Erzeugen und Manipulieren von geometrischen Körpern (`Box`, `Sphere`, `Cylinder`).
+Die Simulationsumgebung erlaubt das dynamische Verwalten geometrischer Körper (`Box`, `Sphere`, `Cylinder`).
 
-* **Objekt-Instanziierung:**
-  Python erzeugt Deklarationen (`WorldObject`) und sendet diese als JSON. Der `WorldSpawnManager` in Unity instanziiert das passende Prefab, weist Skalierung und Materialfarben zu und registriert das Objekt in der internen Verwaltung.
-* **Physik- und Greifinteraktion:**
-  Statische Objekte dienen als unbewegliche Hindernisse (`isKinematic = true`). Dynamische Objekte erhalten einen physikalischen `Rigidbody` sowie die Komponente `GrabbableObject`. Beim Greifen koppelt der Werkzeugcontroller das Objekt kinematisch an den Endeffektor (`AttachTo`); beim Loslassen (`Detach`) wird die physikalische Simulation reaktiviert.
-* **Reproduzierbare Ausgangslagen:**
-  Um deterministische Übungen zu ermöglichen, stellt `World.load_preset()` vordefinierte Szenarien bereit (Katalog siehe Kapitel 5, Entscheidung siehe ADR-5).
+* **Objekt-Instanziierung:** Python sendet Deklarationen (`WorldObject`) per JSON an Port 5006. Der `WorldSpawnManager` instanziiert Prefabs, setzt Skalierung und Materialfarben.
+* **Physik- und Greifinteraktion:** Statische Objekte dienen als Hindernisse (`isKinematic = true`). Dynamische Körper besitzen einen `Rigidbody` und `GrabbableObject`. Werkzeuge koppeln Objekte kinematisch (`AttachTo`); beim Loslassen (`Detach`) greift wieder die Physik.
+* **Reproduzierbare Presets:** `World.load_preset()` stellt vordefinierte Übungsszenarien bereit (z. B. `three_blocks`).
 
 === Schutz- und Validierungskonzept
 
-Das Gesamtsystem schützt Roboter und Simulation durch ein zweistufiges Validierungsmodell:
-
-* **Stufe 1 – Fail-Fast (Strukturprüfung):**
-  Strukturelle Fehler (z. B. fehlender Port für den Hardwaremodus, leere Objektnamen, Vektoren mit falscher Dimensionierung) werden beim Methodenaufruf sofort abgefangen und lösen eine Python-Exception aus (z. B. `InvalidConfigError`).
-* **Stufe 2 – Software-Clamping (Wertebereichsbegrenzung):**
-  Zulässige numerische Parameter werden automatisch auf sichere Intervalle geklemmt, anstatt das Programm abzubrechen:
-  - Gelenkwinkel werden auf die mechanischen Grenzen limitiert (Achsgrenzen siehe Kapitel 2). Unity sichert die Grenzen im `ArticulationBody` zusätzlich ab.
-  - Geschwindigkeiten werden auf den Bereich `1..100` begrenzt.
-  - RGB-Farbwerte werden auf den Wertebereich `0..255` geklemmt.
+* **Stufe 1 – Fail-Fast:** Strukturelle Fehler (ungültiger Port, leere Objektnamen, falsche Vektordimensionen) lösen sofort eine Exception aus (z. B. `InvalidConfigError`).
+* **Stufe 2 – Software-Clamping:** Zulässige Werte werden automatisch begrenzt:
+  - Gelenkwinkel auf die mechanischen Grenzen (`J1` bis `J4`, siehe Kapitel 2).
+  - Geschwindigkeiten auf `1..100`.
+  - RGB-Farbwerte auf `0..255`.
 
 === Test- und Qualitätssicherungskonzept
 
-* **Python Unit Tests:**
-  Automatisierte `pytest`-Suites validieren Protokollerstellung (`test_protocol.py`), Controller-Logik (`test_robot.py`) und Weltverwaltung (`test_world.py`) unter Einsatz von Socket- und Hardware-Mocks.
-* **Unity EditMode Tests:**
-  `NUnit`-Tests (`SerializationTests`, `ComponentTests`) stellen die korrekte JSON-Deserialisierung und das Vorhandensein erforderlicher Prefab-Komponenten sicher.
-* **Manuelle Systemtests:**
-  Das Zusammenspiel über das Netzwerk wird anhand strukturierter Testprotokolle manuell geprüft (automatisierte Integration siehe Kapitel 11).
+Die Qualitätssicherung umfasst automatisierte Unit- und EditMode-Tests sowie manuelle Systemtests im Parallelbetrieb (`both`):
+
+==== Automatisierte Unit- und EditMode-Tests
+
+* **Python Unit Tests (`pytest`):**
+  - `test_protocol.py`: Validiert JSON-Struktur, Typkonvertierung für alle Nachrichtentypen.
+  - `test_robot.py`: Testet Fassade und Controller via Mocks (Initialisierung für `VIRTUAL` vs. `REAL`, Clamping, `close()`, Kontextmanager).
+  - `test_world.py`: Prüft Erzeugung von Primitiven (`spawn`), Szenenbereinigung (`clear`) und Preset-Laden (`three_blocks`).
+* **Unity EditMode Tests (`NUnit`):**
+  - `SerializationTests.cs`: Prüft Deserialisierung von JSON-Datagrammen (`WorldMessage`, `RobotData`, `ColorData`) via `JsonUtility` inklusive Fallback bei unvollständigen Feldern.
+  - `ComponentTests.cs`: Verifiziert strukturelle Komponentenanforderungen (z. B. automatischer `ArticulationBody` bei `ArticulationJointActuator`).
+
+==== Manuelle Systemtests (Hardware-in-the-Loop)
+
+Im Modus `both` steuert ein Python-Skript simultan die Unity-Simulation (UDP) und die physische Hardware (USB-UART, 115200 Baud). Die vollständigen Testprotokolle, Videoaufzeichnungen und Einzelbewertungen sind im Projekt-Wiki hinterlegt: https://github.com/Stonehouse1703/DigitalTwin-for-MyPalletizer-260-M5-UnityVersion/wiki/system-tests[GitHub Wiki: System Tests].
+
+Die visuelle und funktionale Übereinstimmung wurde anhand von 5 Testfällen verifiziert:
+
+[cols="1,2,2,1", options="header"]
+|===
+| Test | Ziel & Prozedur | Akzeptanzkriterium | Status
+
+| **ST-1: Gripper Movement**
+| Synchrone Gelenkbewegungen mit Greifer über mehrere Posen anfahren.
+| Identische Trajektorien, gleichmäßige Bewegung, kein Ruckeln oder Versatz.
+| **Pass**
+
+| **ST-2: Gripper Pick & Place**
+| Bauteil aufnehmen (`set_gripper_state`), transportieren und am Zielpunkt ablegen.
+| Reales Greifen und virtuelles `AttachTo` halten das Teil sicher; präzise Ablage.
+| **Pass**
+
+| **ST-3: Pump Movement**
+| Posenanfahrt mit Saugpumpe zur Prüfung der Ausrichtungskompensation.
+| Identische Bewegung; Saugkopf bleibt permanent exakt vertikal nach unten ausgerichtet.
+| **Pass**
+
+| **ST-4: Pump Pick & Place**
+| Pneumatisches Ansaugen (`pump_on`), Translationsfahrt und Lösen (`pump_off`).
+| Relais und visuelle Bindung aktivieren synchron; Objekt wird sicher transportiert und abgelegt.
+| **Pass**
+
+| **ST-5: LED Functionality**
+| Zyklischer Farbwechsel (Rot, Grün, Blau, Gelb, Aus) via `set_color`.
+| Unmittelbare, synchrone Farbanpassung auf physischer M5-Basis und in Unity.
+| **Pass**
+|===
